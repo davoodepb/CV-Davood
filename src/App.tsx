@@ -80,6 +80,7 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 <Route path="/shop" element={<Shop />} />
                 <Route path="/chat" element={<Chat />} />
+                <Route path="/admin" element={<Admin />} />
                 <Route path="/admin-panel-secret" element={<Admin />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
