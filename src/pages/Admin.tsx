@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { FileText, ShoppingBag, MessageCircle, Settings, Plus, Pencil, Trash2, Save, LogIn, LogOut, Link as LinkIcon, Send } from "lucide-react";
+import { FileText, ShoppingBag, MessageCircle, Settings, Plus, Pencil, Trash2, Save, LogIn, LogOut, Link as LinkIcon, Send, Activity, Users, LayoutDashboard, CreditCard, Truck, Star, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,19 +10,27 @@ import { useCV } from "@/contexts/CVContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShop, Product } from "@/contexts/ShopContext";
 
-type Tab = "cv" | "social" | "products" | "messages" | "settings";
+type Tab = "dashboard" | "cv" | "social" | "products" | "orders" | "customers" | "payments" | "shipping" | "reviews" | "analytics" | "online" | "messages" | "settings";
 
 const tabs: { key: Tab; label: string; icon: React.ElementType }[] = [
+  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { key: "cv", label: "CV Info", icon: FileText },
   { key: "social", label: "Social Links", icon: LinkIcon },
   { key: "products", label: "Products", icon: ShoppingBag },
+  { key: "orders", label: "Orders", icon: ShoppingBag },
+  { key: "customers", label: "Customers", icon: Users },
+  { key: "payments", label: "Payments", icon: CreditCard },
+  { key: "shipping", label: "Shipping", icon: Truck },
+  { key: "reviews", label: "Reviews", icon: Star },
+  { key: "analytics", label: "Analytics", icon: BarChart3 },
+  { key: "online", label: "Online", icon: Activity },
   { key: "messages", label: "Messages", icon: MessageCircle },
   { key: "settings", label: "Settings", icon: Settings },
 ];
 
 const Admin = () => {
   const { user, loading, isAdmin, login, loginWithGoogle, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>("cv");
+  const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPass, setLoginPass] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
@@ -126,13 +134,259 @@ const Admin = () => {
           </div>
 
           <div className="flex-1 bg-card rounded-xl border border-border p-6">
+            {activeTab === "dashboard" && <DashboardPanel />}
             {activeTab === "cv" && <CVPanel />}
             {activeTab === "social" && <SocialPanel />}
             {activeTab === "products" && <ProductsPanel />}
+            {activeTab === "orders" && <OrdersPanel />}
+            {activeTab === "customers" && <CustomersPanel />}
+            {activeTab === "payments" && <PaymentsPanel />}
+            {activeTab === "shipping" && <ShippingPanel />}
+            {activeTab === "reviews" && <ReviewsPanel />}
+            {activeTab === "analytics" && <AnalyticsPanel />}
+            {activeTab === "online" && <OnlinePanel />}
             {activeTab === "messages" && <MessagesPanel />}
             {activeTab === "settings" && <SettingsPanel />}
           </div>
         </div>
+      </div>
+    </div>
+  );
+};
+
+const formatOrderDate = (isoDate: string) => {
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return "Unknown date";
+  return date.toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const DashboardPanel = () => {
+  const { orders, products } = useShop();
+
+  const totalSales = orders.length;
+  const paidRevenue = orders
+    .filter((o) => o.paymentStatus === "success")
+    .reduce((sum, o) => sum + o.total, 0);
+
+  const productsSold = orders
+    .flatMap((order) => order.items)
+    .reduce<Record<string, { title: string; qty: number }>>((acc, item) => {
+      if (!acc[item.productId]) acc[item.productId] = { title: item.title, qty: 0 };
+      acc[item.productId].qty += item.quantity;
+      return acc;
+    }, {});
+
+  const topProducts = Object.values(productsSold)
+    .sort((a, b) => b.qty - a.qty)
+    .slice(0, 5);
+
+  const recentOrders = [...orders].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5);
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-heading font-semibold text-foreground">Dashboard Overview</h2>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="rounded-lg border border-border bg-background p-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Total Sales</p>
+          <p className="text-2xl font-bold text-foreground mt-1">{totalSales}</p>
+        </div>
+        <div className="rounded-lg border border-border bg-background p-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Orders</p>
+          <p className="text-2xl font-bold text-foreground mt-1">{orders.length}</p>
+        </div>
+        <div className="rounded-lg border border-border bg-background p-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Total Revenue</p>
+          <p className="text-2xl font-bold text-primary mt-1">${paidRevenue.toFixed(2)}</p>
+        </div>
+        <div className="rounded-lg border border-border bg-background p-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Catalog Products</p>
+          <p className="text-2xl font-bold text-foreground mt-1">{products.length}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="rounded-lg border border-border bg-background p-4 space-y-3">
+          <h3 className="font-semibold text-foreground">Top Selling Products</h3>
+          {topProducts.length === 0 && <p className="text-sm text-muted-foreground">No sales yet.</p>}
+          {topProducts.map((item) => (
+            <div key={item.title} className="flex items-center justify-between text-sm">
+              <span className="text-foreground">{item.title}</span>
+              <Badge>{item.qty} sold</Badge>
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-lg border border-border bg-background p-4 space-y-3">
+          <h3 className="font-semibold text-foreground">Recent Activity</h3>
+          {recentOrders.length === 0 && <p className="text-sm text-muted-foreground">No recent orders.</p>}
+          {recentOrders.map((order) => (
+            <div key={order.id} className="text-sm border border-border rounded-md p-2">
+              <p className="font-medium text-foreground">{order.customer.fullName} • ${order.total.toFixed(2)}</p>
+              <p className="text-xs text-muted-foreground">{formatOrderDate(order.createdAt)} • {order.status}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CustomersPanel = () => {
+  const { orders } = useShop();
+
+  const customers = Object.values(
+    orders.reduce<Record<string, { name: string; email: string; phone: string; orders: number; spent: number }>>((acc, order) => {
+      const key = order.customer.email || order.customer.phone || order.id;
+      if (!acc[key]) {
+        acc[key] = {
+          name: order.customer.fullName,
+          email: order.customer.email,
+          phone: order.customer.phone,
+          orders: 0,
+          spent: 0,
+        };
+      }
+      acc[key].orders += 1;
+      acc[key].spent += order.total;
+      return acc;
+    }, {})
+  ).sort((a, b) => b.spent - a.spent);
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-xl font-heading font-semibold text-foreground">Customers</h2>
+      {customers.length === 0 && <p className="text-sm text-muted-foreground">No customer records yet.</p>}
+      <div className="space-y-2">
+        {customers.map((customer) => (
+          <div key={`${customer.email}-${customer.phone}`} className="rounded-lg border border-border bg-background p-4">
+            <p className="font-semibold text-foreground">{customer.name}</p>
+            <p className="text-sm text-muted-foreground">{customer.email || "No email"}</p>
+            <p className="text-sm text-muted-foreground">{customer.phone || "No phone"}</p>
+            <div className="mt-2 flex gap-2 text-xs">
+              <Badge>{customer.orders} orders</Badge>
+              <Badge variant="secondary">${customer.spent.toFixed(2)} spent</Badge>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const PaymentsPanel = () => {
+  const { orders, markOrderRefunded } = useShop();
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-xl font-heading font-semibold text-foreground">Payments</h2>
+      <p className="text-sm text-muted-foreground">Stripe / PayPal / MBWay integration endpoint can be connected later. Current payments are tracked locally/Firestore.</p>
+      <div className="space-y-2">
+        {orders.map((order) => (
+          <div key={order.id} className="rounded-lg border border-border bg-background p-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-foreground">{order.id} • ${order.total.toFixed(2)}</p>
+              <p className="text-xs text-muted-foreground capitalize">{order.paymentMethod} • {order.paymentStatus} • {formatOrderDate(order.createdAt)}</p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => markOrderRefunded(order.id)}
+              disabled={order.paymentStatus === "refunded"}
+            >
+              {order.paymentStatus === "refunded" ? "Refunded" : "Refund"}
+            </Button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const ShippingPanel = () => {
+  const { orders, updateOrderTracking, updateOrderStatus } = useShop();
+  const [trackingDrafts, setTrackingDrafts] = useState<Record<string, string>>({});
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-xl font-heading font-semibold text-foreground">Shipping & Logistics</h2>
+      <div className="space-y-3">
+        {orders.map((order) => (
+          <div key={order.id} className="rounded-lg border border-border bg-background p-4 space-y-2">
+            <p className="text-sm font-semibold text-foreground">{order.id} • {order.customer.fullName}</p>
+            <p className="text-xs text-muted-foreground">
+              {order.customer.address || "No address"}, {order.customer.city}, {order.customer.country}, {order.customer.postalCode}
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <select
+                className="border border-input rounded-md px-3 py-2 text-sm bg-background text-foreground"
+                value={order.status}
+                onChange={(e) => updateOrderStatus(order.id, e.target.value as any)}
+              >
+                <option value="pending">Pending</option>
+                <option value="paid">Paid</option>
+                <option value="shipped">Shipped</option>
+                <option value="delivered">Delivered</option>
+              </select>
+              <Input
+                placeholder="Tracking code"
+                value={trackingDrafts[order.id] ?? order.trackingCode ?? ""}
+                onChange={(e) => setTrackingDrafts((prev) => ({ ...prev, [order.id]: e.target.value }))}
+              />
+              <Button
+                variant="outline"
+                onClick={() => updateOrderTracking(order.id, trackingDrafts[order.id] ?? order.trackingCode ?? "")}
+              >
+                Save Tracking
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const ReviewsPanel = () => (
+  <div className="space-y-4">
+    <h2 className="text-xl font-heading font-semibold text-foreground">Reviews</h2>
+    <div className="rounded-lg border border-border bg-background p-4">
+      <p className="text-sm text-muted-foreground">
+        Review moderation is ready for integration. You can connect a Firestore `reviews` collection to approve/remove and feature top ratings.
+      </p>
+    </div>
+  </div>
+);
+
+const AnalyticsPanel = () => {
+  const { orders } = useShop();
+
+  const monthlyRevenue = orders.reduce<Record<string, number>>((acc, order) => {
+    const month = order.createdAt.slice(0, 7);
+    acc[month] = (acc[month] || 0) + order.total;
+    return acc;
+  }, {});
+
+  const monthlyRows = Object.entries(monthlyRevenue).sort((a, b) => a[0].localeCompare(b[0]));
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-xl font-heading font-semibold text-foreground">Analytics</h2>
+      <p className="text-sm text-muted-foreground">Sales by month and product trends to support growth decisions.</p>
+      <div className="space-y-2">
+        {monthlyRows.length === 0 && <p className="text-sm text-muted-foreground">No analytics data yet.</p>}
+        {monthlyRows.map(([month, revenue]) => (
+          <div key={month} className="rounded-lg border border-border bg-background p-3 flex items-center justify-between">
+            <span className="text-sm font-medium text-foreground">{month}</span>
+            <span className="text-sm font-semibold text-primary">${revenue.toFixed(2)}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -501,6 +755,8 @@ const ProductsPanel = () => {
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newPrice, setNewPrice] = useState("");
+  const [newStock, setNewStock] = useState("0");
+  const [newVariants, setNewVariants] = useState("");
   const [newCat, setNewCat] = useState("");
   const [newImage, setNewImage] = useState("");
   const [newCatKey, setNewCatKey] = useState("");
@@ -516,8 +772,10 @@ const ProductsPanel = () => {
       price: parseFloat(newPrice),
       category: newCat || "courses",
       image: newImage || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=250&fit=crop",
+      stock: parseInt(newStock || "0", 10),
+      variants: newVariants.split(",").map((v) => v.trim()).filter(Boolean),
     });
-    setNewTitle(""); setNewDesc(""); setNewPrice(""); setNewCat(""); setNewImage("");
+    setNewTitle(""); setNewDesc(""); setNewPrice(""); setNewStock("0"); setNewVariants(""); setNewCat(""); setNewImage("");
     setShowAdd(false);
     toast.success("Product added!");
   };
@@ -579,6 +837,10 @@ const ProductsPanel = () => {
           <Textarea placeholder="Description" value={newDesc} onChange={e => setNewDesc(e.target.value)} rows={2} />
           <div className="grid grid-cols-2 gap-3">
             <Input placeholder="Price" type="number" value={newPrice} onChange={e => setNewPrice(e.target.value)} />
+            <Input placeholder="Stock" type="number" value={newStock} onChange={e => setNewStock(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input placeholder="Variants (comma separated)" value={newVariants} onChange={e => setNewVariants(e.target.value)} />
             <select className="border border-input rounded-md px-3 py-2 text-sm bg-background text-foreground" value={newCat} onChange={e => setNewCat(e.target.value)}>
               <option value="">Select category</option>
               {categories.map(c => <option key={c.id} value={c.key}>{c.label}</option>)}
@@ -599,6 +861,14 @@ const ProductsPanel = () => {
                 <Input value={editData.description ?? p.description} onChange={e => setEditData({ ...editData, description: e.target.value })} />
                 <div className="grid grid-cols-2 gap-2">
                   <Input type="number" value={editData.price ?? p.price} onChange={e => setEditData({ ...editData, price: parseFloat(e.target.value) })} />
+                  <Input type="number" value={editData.stock ?? p.stock} onChange={e => setEditData({ ...editData, stock: parseInt(e.target.value || "0", 10) })} />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    value={Array.isArray(editData.variants) ? editData.variants.join(", ") : p.variants.join(", ")}
+                    onChange={e => setEditData({ ...editData, variants: e.target.value.split(",").map(v => v.trim()).filter(Boolean) })}
+                    placeholder="Variants"
+                  />
                   <select className="border border-input rounded-md px-3 py-2 text-sm bg-background text-foreground" value={editData.category ?? p.category} onChange={e => setEditData({ ...editData, category: e.target.value })}>
                     {categories.map(c => <option key={c.id} value={c.key}>{c.label}</option>)}
                   </select>
@@ -613,6 +883,7 @@ const ProductsPanel = () => {
                 <div className="flex items-center gap-3">
                   <Badge variant="secondary" className="capitalize text-xs">{p.category}</Badge>
                   <span className="font-medium text-foreground text-sm">{p.title}</span>
+                  <span className="text-xs text-muted-foreground">Stock: {p.stock}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-semibold text-primary">${p.price}</span>
@@ -733,6 +1004,208 @@ const MessagesPanel = () => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+const OnlinePanel = () => {
+  const [visitors, setVisitors] = useState<Array<{
+    id: string;
+    visitorId?: string;
+    currentPath?: string;
+    userAgent?: string;
+    language?: string;
+    screen?: string;
+    lastSeenAt?: any;
+  }>>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    let unsubscribe: (() => void) | null = null;
+
+    const start = async () => {
+      const { collection: col, query: q, orderBy: ob, onSnapshot: snap } = await import("firebase/firestore");
+      const { db: fireDb } = await import("@/lib/firebase");
+      const presenceQuery = q(col(fireDb, "presence"), ob("lastSeenAt", "desc"));
+
+      unsubscribe = snap(presenceQuery, (snapshot) => {
+        if (!mounted) return;
+        setVisitors(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as any)));
+      });
+    };
+
+    start();
+
+    return () => {
+      mounted = false;
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
+  const now = Date.now();
+  const ONLINE_WINDOW_MS = 2 * 60 * 1000;
+
+  const activeVisitors = visitors.filter((v) => {
+    const lastSeenDate = v.lastSeenAt?.toDate?.();
+    if (!lastSeenDate) return false;
+    return now - lastSeenDate.getTime() <= ONLINE_WINDOW_MS;
+  });
+
+  const formatLastSeen = (value: any) => {
+    const date = value?.toDate?.();
+    if (!date) return "No heartbeat yet";
+    return date.toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-heading font-semibold text-foreground">Online Visitors</h2>
+        <Badge className="gap-1"><Users size={12} /> {activeVisitors.length} online now</Badge>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="rounded-lg border border-border bg-background p-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Currently Online</p>
+          <p className="text-2xl font-bold text-foreground mt-1">{activeVisitors.length}</p>
+          <p className="text-xs text-muted-foreground mt-1">Active in last 2 minutes</p>
+        </div>
+        <div className="rounded-lg border border-border bg-background p-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Known Visitors</p>
+          <p className="text-2xl font-bold text-foreground mt-1">{visitors.length}</p>
+          <p className="text-xs text-muted-foreground mt-1">Unique visitor IDs tracked</p>
+        </div>
+        <div className="rounded-lg border border-border bg-background p-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Last Refresh</p>
+          <p className="text-sm font-medium text-foreground mt-2">Real-time (Firestore)</p>
+          <p className="text-xs text-muted-foreground mt-1">Updates automatically</p>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {visitors.length === 0 && (
+          <p className="text-sm text-muted-foreground">No visitor presence detected yet.</p>
+        )}
+
+        {visitors.map((visitor) => {
+          const lastSeenDate = visitor.lastSeenAt?.toDate?.();
+          const isOnline = !!lastSeenDate && now - lastSeenDate.getTime() <= ONLINE_WINDOW_MS;
+
+          return (
+            <div key={visitor.id} className="rounded-lg border border-border bg-background p-4 space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-foreground">{visitor.visitorId || visitor.id}</p>
+                <Badge variant={isOnline ? "default" : "secondary"}>{isOnline ? "Online" : "Offline"}</Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">Page: {visitor.currentPath || "unknown"}</p>
+              <p className="text-xs text-muted-foreground">Last seen: {formatLastSeen(visitor.lastSeenAt)}</p>
+              <p className="text-xs text-muted-foreground">Language: {visitor.language || "unknown"} • Screen: {visitor.screen || "unknown"}</p>
+              <p className="text-xs text-muted-foreground truncate">{visitor.userAgent || "Unknown device"}</p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const OrdersPanel = () => {
+  const { orders, updateOrderStatus, updateOrderTracking } = useShop();
+  const [trackingDrafts, setTrackingDrafts] = useState<Record<string, string>>({});
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-heading font-semibold text-foreground">Orders</h2>
+        <Badge>{orders.length} total</Badge>
+      </div>
+
+      {orders.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          No orders yet. Completed checkout payments will appear here automatically.
+        </p>
+      )}
+
+      <div className="space-y-3">
+        {orders.map((order) => (
+          <div key={order.id} className="rounded-lg border border-border bg-background p-4 space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Order {order.id}</p>
+                <p className="text-xs text-muted-foreground">{formatOrderDate(order.createdAt)}</p>
+              </div>
+              <select
+                className="border border-input rounded-md px-2 py-1 text-xs bg-background text-foreground"
+                value={order.status}
+                onChange={(e) => updateOrderStatus(order.id, e.target.value as any)}
+              >
+                <option value="pending">Pendente</option>
+                <option value="paid">Pago</option>
+                <option value="shipped">Enviado</option>
+                <option value="delivered">Entregue</option>
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Customer</p>
+                <p className="text-sm text-foreground">{order.customer.fullName}</p>
+                <p className="text-sm text-muted-foreground">{order.customer.email}</p>
+                <p className="text-sm text-muted-foreground">{order.customer.phone}</p>
+                <p className="text-sm text-muted-foreground">
+                  {order.customer.address || "No address"}, {order.customer.city}, {order.customer.country}, {order.customer.postalCode}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Payment & Totals</p>
+                <p className="text-sm text-foreground capitalize">Method: {order.paymentMethod}</p>
+                <p className="text-sm text-muted-foreground capitalize">Payment: {order.paymentStatus}</p>
+                <p className="text-sm text-muted-foreground">Subtotal: ${order.subtotal.toFixed(2)}</p>
+                <p className="text-sm text-muted-foreground">VAT: ${order.vat.toFixed(2)}</p>
+                <p className="text-sm text-muted-foreground">Shipping: ${order.shipping.toFixed(2)}</p>
+                <p className="text-sm font-semibold text-primary">Total: ${order.total.toFixed(2)}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2">
+              <Input
+                placeholder="Tracking code"
+                value={trackingDrafts[order.id] ?? order.trackingCode ?? ""}
+                onChange={(e) => setTrackingDrafts((prev) => ({ ...prev, [order.id]: e.target.value }))}
+              />
+              <Button
+                variant="outline"
+                onClick={() => updateOrderTracking(order.id, trackingDrafts[order.id] ?? order.trackingCode ?? "")}
+              >
+                Save Tracking
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Items Purchased</p>
+              <div className="space-y-2">
+                {order.items.map((item) => (
+                  <div key={`${order.id}-${item.productId}`} className="flex items-center justify-between rounded-md border border-border p-2">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{item.title}</p>
+                      <p className="text-xs text-muted-foreground">{item.quantity} x ${item.unitPrice.toFixed(2)}</p>
+                    </div>
+                    <p className="text-sm font-semibold text-foreground">${item.lineTotal.toFixed(2)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

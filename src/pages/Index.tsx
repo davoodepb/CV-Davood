@@ -232,18 +232,21 @@ const Index = () => {
             </div>
             <div className="flex flex-col md:flex-row items-center gap-8 md:gap-16">
               <div 
-                className="relative w-40 h-40 md:w-52 md:h-52 flex-shrink-0 flex items-center justify-center cursor-pointer select-none"
+                className="relative w-40 h-40 md:w-52 md:h-52 flex-shrink-0 flex items-center justify-center cursor-pointer select-none profile-float"
                 onClick={handleProfileTap}
               >
-                <div className="absolute inset-0 animate-spin" style={{ animationDuration: '20s' }}>
+                <div className="absolute inset-0 stars-ring">
                   {Array.from({ length: 12 }).map((_, i) => {
                     const angle = (i * 30) * (Math.PI / 180);
                     const radius = 48;
                     const x = 50 + radius * Math.cos(angle);
                     const y = 50 + radius * Math.sin(angle);
                     return (
-                      <span key={i} className="absolute text-yellow-400 text-[10px] md:text-xs"
-                        style={{ left: `${x}%`, top: `${y}%`, transform: 'translate(-50%, -50%)' }}>
+                      <span
+                        key={i}
+                        className="absolute text-yellow-400 text-[10px] md:text-xs star-sync"
+                        style={{ left: `${x}%`, top: `${y}%` }}
+                      >
                         ★
                       </span>
                     );
