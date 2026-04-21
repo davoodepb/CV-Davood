@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X, FileText, ShoppingBag, MessageCircle } from "lucide-react";
+import profileImg from "@/assets/profile.jpg";
 
 const navItems = [
   { path: "/", label: "My CV", icon: FileText },
@@ -16,7 +17,8 @@ const Navbar = () => {
     <nav className="fixed w-full bg-card/95 backdrop-blur-md shadow-sm z-50 no-print border-b border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2.5">
+            <img src={profileImg} alt="Davood Sharifi" className="w-9 h-9 rounded-full object-cover border-2 border-primary/30 shadow-sm" />
             <span className="text-xl font-heading font-bold text-gradient">Davood</span>
             <span className="text-xl font-heading font-bold text-foreground">Sharifi</span>
           </Link>

@@ -355,15 +355,45 @@ const SocialPanel = () => {
   const [instagram, setInstagram] = useState(cv.socialLinks?.instagram || "");
   const [whatsapp, setWhatsapp] = useState(cv.socialLinks?.whatsapp || "");
   const [tiktok, setTiktok] = useState(cv.socialLinks?.tiktok || "");
+  const [customLinks, setCustomLinks] = useState(cv.customLinks || []);
+  const [newLinkTitle, setNewLinkTitle] = useState("");
+  const [newLinkUrl, setNewLinkUrl] = useState("");
+  const [showAddLink, setShowAddLink] = useState(false);
 
   const handleSave = async () => {
-    updateCV({ socialLinks: { github, linkedin, instagram, whatsapp, tiktok } });
+    updateCV({ socialLinks: { github, linkedin, instagram, whatsapp, tiktok }, customLinks });
     try {
       await saveToFirestore();
       toast.success("Social links saved!");
     } catch {
       toast.success("Social links updated locally.");
     }
+  };
+
+  const addCustomLink = () => {
+    if (!newLinkTitle.trim() || !newLinkUrl.trim()) {
+      toast.error("Title and URL are required");
+      return;
+    }
+    const newLink = {
+      id: Date.now().toString(),
+      title: newLinkTitle.trim(),
+      url: newLinkUrl.trim().startsWith("http") ? newLinkUrl.trim() : `https://${newLinkUrl.trim()}`,
+    };
+    setCustomLinks([...customLinks, newLink]);
+    setNewLinkTitle("");
+    setNewLinkUrl("");
+    setShowAddLink(false);
+    toast.success("Link added! Click Save to publish.");
+  };
+
+  const removeCustomLink = (id: string) => {
+    setCustomLinks(customLinks.filter((l: any) => l.id !== id));
+    toast.success("Link removed! Click Save to apply.");
+  };
+
+  const updateCustomLink = (id: string, field: string, value: string) => {
+    setCustomLinks(customLinks.map((l: any) => l.id === id ? { ...l, [field]: value } : l));
   };
 
   return (
@@ -377,7 +407,89 @@ const SocialPanel = () => {
         <div><label className="text-sm font-medium text-foreground mb-1 block">WhatsApp Link</label><Input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="https://wa.me/351927717490" /></div>
         <div><label className="text-sm font-medium text-foreground mb-1 block">TikTok URL</label><Input value={tiktok} onChange={(e) => setTiktok(e.target.value)} placeholder="https://tiktok.com/@username" /></div>
       </div>
-      <Button className="gap-2" onClick={handleSave}><Save size={16} /> Save Social Links</Button>
+
+      {/* Custom Links Section */}
+      <div className="border-t border-border pt-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">Custom Links</h3>
+            <p className="text-sm text-muted-foreground">Add any extra links you want to publish on your page.</p>
+          </div>
+          <Button size="sm" className="gap-2" onClick={() => setShowAddLink(!showAddLink)}>
+            <Plus size={16} /> Add Link
+          </Button>
+        </div>
+
+        {/* Add New Link Form */}
+        {showAddLink && (
+          <div className="p-4 rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 space-y-3 animate-fade-in">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <LinkIcon size={16} className="text-primary" /> New Link
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Input 
+                placeholder="Link title (e.g. My Portfolio)" 
+                value={newLinkTitle} 
+                onChange={(e) => setNewLinkTitle(e.target.value)} 
+              />
+              <Input 
+                placeholder="URL (e.g. https://example.com)" 
+                value={newLinkUrl} 
+                onChange={(e) => setNewLinkUrl(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addCustomLink()}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={addCustomLink} className="gap-1">
+                <Plus size={14} /> Add
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => { setShowAddLink(false); setNewLinkTitle(""); setNewLinkUrl(""); }}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Existing Custom Links List */}
+        {customLinks.length > 0 ? (
+          <div className="space-y-2">
+            {customLinks.map((link: any) => (
+              <div key={link.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-background group hover:border-primary/30 transition-colors">
+                <LinkIcon size={16} className="text-primary flex-shrink-0" />
+                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <Input 
+                    value={link.title} 
+                    onChange={(e) => updateCustomLink(link.id, "title", e.target.value)} 
+                    className="text-sm h-8"
+                    placeholder="Link title"
+                  />
+                  <Input 
+                    value={link.url} 
+                    onChange={(e) => updateCustomLink(link.id, "url", e.target.value)} 
+                    className="text-sm h-8"
+                    placeholder="URL"
+                  />
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" 
+                  onClick={() => removeCustomLink(link.id)}
+                >
+                  <Trash2 size={14} />
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-muted-foreground border border-dashed border-border rounded-lg">
+            <LinkIcon size={24} className="mx-auto mb-2 opacity-40" />
+            <p className="text-sm">No custom links yet. Click "Add Link" to create one.</p>
+          </div>
+        )}
+      </div>
+
+      <Button className="gap-2 w-full" size="lg" onClick={handleSave}><Save size={16} /> Save Social Links</Button>
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Download, Mail, Phone, MapPin, Calendar, Briefcase, GraduationCap, Globe, CheckCircle, Github, Linkedin, Instagram, MessageCircle } from "lucide-react";
+import { Download, Mail, Phone, MapPin, Calendar, Briefcase, GraduationCap, Globe, CheckCircle, Github, Linkedin, Instagram, MessageCircle, ExternalLink, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -275,10 +275,24 @@ const Index = () => {
                     ))}
                   </div>
                 )}
-                <Button onClick={handleDownloadPDF}
-                  className="mt-6 bg-primary-foreground text-primary hover:bg-primary-foreground/90 font-semibold gap-2">
-                  <Download size={16} /> Download CV as PDF
-                </Button>
+                <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-6">
+                  <Button onClick={handleDownloadPDF}
+                    className="bg-primary-foreground text-primary hover:bg-primary-foreground/90 font-semibold gap-2">
+                    <Download size={16} /> Download CV as PDF
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      if ((window as any).__pwaPrompt) {
+                        (window as any).__pwaPrompt.prompt();
+                      } else {
+                        window.open(window.location.href, '_blank');
+                      }
+                    }}
+                    className="bg-green-500 hover:bg-green-600 text-white font-semibold gap-2 shadow-lg"
+                  >
+                    <Smartphone size={16} /> Baixar App
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -291,6 +305,39 @@ const Index = () => {
             <h2 className="europass-heading">About Me</h2>
             <p className="text-muted-foreground leading-relaxed">{cv.about}</p>
           </section>
+
+          {/* Custom/Published Links */}
+          {cv.customLinks && cv.customLinks.length > 0 && (
+            <section className="europass-section animate-fade-in" style={{ animationDelay: "0.05s" }}>
+              <h2 className="europass-heading flex items-center gap-2">
+                <ExternalLink size={20} className="text-primary" /> Links
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {cv.customLinks.map((link: any) => (
+                  <a
+                    key={link.id}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex items-center gap-3 p-4 rounded-xl border border-border bg-card hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-300"
+                  >
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
+                      <ExternalLink size={18} className="text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-foreground text-sm truncate group-hover:text-primary transition-colors">
+                        {link.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {link.url.replace(/^https?:\/\//, '').split('/')[0]}
+                      </p>
+                    </div>
+                    <ExternalLink size={14} className="text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <section className="europass-section animate-fade-in" style={{ animationDelay: "0.1s" }}>

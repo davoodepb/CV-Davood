@@ -11,6 +11,11 @@ export interface Product {
   image: string;
 }
 
+export interface CartItem {
+  product: Product;
+  quantity: number;
+}
+
 export interface ShopCategory {
   id: string;
   key: string;
@@ -38,12 +43,18 @@ const defaultProducts: Product[] = [
 interface ShopContextType {
   products: Product[];
   categories: ShopCategory[];
+  cart: CartItem[];
+  cartTotal: number;
+  cartCount: number;
   loading: boolean;
   addProduct: (p: Omit<Product, "id">) => Promise<void>;
   updateProduct: (id: string, p: Partial<Product>) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   addCategory: (key: string, label: string) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
+  addToCart: (product: Product) => void;
+  removeFromCart: (productId: string) => void;
+  clearCart: () => void;
 }
 
 const ShopContext = createContext<ShopContextType | undefined>(undefined);
@@ -51,6 +62,14 @@ const ShopContext = createContext<ShopContextType | undefined>(undefined);
 export const ShopProvider = ({ children }: { children: ReactNode }) => {
   const [products, setProducts] = useState<Product[]>(defaultProducts);
   const [categories, setCategories] = useState<ShopCategory[]>(defaultCategories);
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    try {
+      const stored = localStorage.getItem("shop-cart");
+      return stored ? (JSON.parse(stored) as CartItem[]) : [];
+    } catch {
+      return [];
+    }
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -74,6 +93,10 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     };
     load();
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("shop-cart", JSON.stringify(cart));
+  }, [cart]);
 
   const addProduct = async (p: Omit<Product, "id">) => {
     try {
@@ -121,8 +144,62 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     setCategories(prev => prev.filter(c => c.id !== id));
   };
 
+  const addToCart = (product: Product) => {
+    setCart((prev) => {
+      const existing = prev.find((item) => item.product.id === product.id);
+      if (existing) {
+        return prev.map((item) =>
+          item.product.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+      return [...prev, { product, quantity: 1 }];
+    });
+  };
+
+  const removeFromCart = (productId: string) => {
+    setCart((prev) =>
+      prev
+        .map((item) =>
+          item.product.id === productId
+            ? { ...item, quantity: item.quantity - 1 }
+            : item
+        )
+        .filter((item) => item.quantity > 0)
+    );
+  };
+
+  const clearCart = () => {
+    setCart([]);
+  };
+
+  const cartTotal = cart.reduce(
+    (sum, item) => sum + item.product.price * item.quantity,
+    0
+  );
+
+  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
   return (
-    <ShopContext.Provider value={{ products, categories, loading, addProduct, updateProduct, deleteProduct, addCategory, deleteCategory }}>
+    <ShopContext.Provider
+      value={{
+        products,
+        categories,
+        cart,
+        cartTotal,
+        cartCount,
+        loading,
+        addProduct,
+        updateProduct,
+        deleteProduct,
+        addCategory,
+        deleteCategory,
+        addToCart,
+        removeFromCart,
+        clearCart,
+      }}
+    >
       {children}
     </ShopContext.Provider>
   );

@@ -2,6 +2,13 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
+export interface CustomLink {
+  id: string;
+  title: string;
+  url: string;
+  icon?: string;
+}
+
 export interface CVData {
   name: string;
   title: string;
@@ -18,6 +25,7 @@ export interface CVData {
     whatsapp: string;
     tiktok: string;
   };
+  customLinks: CustomLink[];
   education: { period: string; degree: string; school: string; details: string[] }[];
   experience: { year: string; title: string; desc: string }[];
   technicalSkills: { name: string; pct: number }[];
@@ -41,6 +49,7 @@ const defaultCV: CVData = {
     whatsapp: "https://wa.me/351927717490",
     tiktok: "",
   },
+  customLinks: [],
   education: [
     {
       period: "2018 – 2022",

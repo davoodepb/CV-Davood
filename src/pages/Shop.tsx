@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ShoppingCart } from "lucide-react";
+import { Minus, ShoppingCart, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Navbar from "@/components/Navbar";
@@ -8,7 +8,17 @@ import { toast } from "sonner";
 import { useShop } from "@/contexts/ShopContext";
 
 const Shop = () => {
-  const { products, categories, loading } = useShop();
+  const {
+    products,
+    categories,
+    cart,
+    cartTotal,
+    cartCount,
+    loading,
+    addToCart,
+    removeFromCart,
+    clearCart,
+  } = useShop();
   const [active, setActive] = useState<string>("all");
 
   const filtered = active === "all" ? products : products.filter((p) => p.category === active);
@@ -54,38 +64,92 @@ const Shop = () => {
           ))}
         </div>
 
-        {/* Products Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.map((product) => (
-            <div key={product.id} className="shop-card">
-              <div className="h-48 overflow-hidden">
-                <img
-                  src={product.image}
-                  alt={product.title}
-                  className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-                />
-              </div>
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-2">
-                  <Badge variant="secondary" className="text-xs capitalize">{product.category}</Badge>
-                  <span className="text-lg font-bold text-primary">${product.price}</span>
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filtered.map((product) => (
+              <div key={product.id} className="shop-card">
+                <div className="h-48 overflow-hidden">
+                  <img
+                    src={product.image}
+                    alt={product.title}
+                    className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                  />
                 </div>
-                <h3 className="font-heading font-semibold text-foreground mb-1">{product.title}</h3>
-                <p className="text-sm text-muted-foreground mb-4">{product.description}</p>
-                <Button
-                  className="w-full gap-2"
-                  onClick={() => toast.success(`"${product.title}" added to cart!`)}
-                >
-                  <ShoppingCart size={16} /> Add to Cart
-                </Button>
+                <div className="p-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <Badge variant="secondary" className="text-xs capitalize">{product.category}</Badge>
+                    <span className="text-lg font-bold text-primary">${product.price}</span>
+                  </div>
+                  <h3 className="font-heading font-semibold text-foreground mb-1">{product.title}</h3>
+                  <p className="text-sm text-muted-foreground mb-4">{product.description}</p>
+                  <Button
+                    className="w-full gap-2"
+                    onClick={() => {
+                      addToCart(product);
+                      toast.success(`"${product.title}" added to cart!`);
+                    }}
+                  >
+                    <ShoppingCart size={16} /> Add to Cart
+                  </Button>
+                </div>
               </div>
+            ))}
+            {filtered.length === 0 && (
+              <div className="col-span-full text-center py-12 text-muted-foreground">
+                No products in this category yet.
+              </div>
+            )}
+          </div>
+
+          <aside className="shop-card xl:sticky xl:top-24">
+            <div className="p-5 border-b border-border flex items-center justify-between">
+              <h2 className="font-heading font-semibold text-lg">Your Cart</h2>
+              <Badge>{cartCount} items</Badge>
             </div>
-          ))}
-          {filtered.length === 0 && (
-            <div className="col-span-full text-center py-12 text-muted-foreground">
-              No products in this category yet.
+
+            <div className="p-5 space-y-4 max-h-[420px] overflow-auto">
+              {cart.length === 0 && (
+                <p className="text-sm text-muted-foreground">Your cart is empty. Add a product to get started.</p>
+              )}
+
+              {cart.map((item) => (
+                <div key={item.product.id} className="rounded-lg border border-border p-3 bg-muted/30">
+                  <p className="font-medium text-sm text-foreground">{item.product.title}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {item.quantity} x ${item.product.price.toFixed(2)}
+                  </p>
+                  <div className="flex items-center justify-between mt-3">
+                    <span className="font-semibold text-primary">
+                      ${(item.product.price * item.quantity).toFixed(2)}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1"
+                      onClick={() => removeFromCart(item.product.id)}
+                    >
+                      <Minus size={14} /> Remove
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
-          )}
+
+            <div className="p-5 border-t border-border space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Total</span>
+                <span className="text-xl font-bold text-primary">${cartTotal.toFixed(2)}</span>
+              </div>
+              <Button
+                className="w-full"
+                variant="destructive"
+                onClick={clearCart}
+                disabled={cart.length === 0}
+              >
+                <Trash2 size={16} /> Clear Cart
+              </Button>
+            </div>
+          </aside>
         </div>
       </div>
       <Footer />
