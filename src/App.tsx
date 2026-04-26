@@ -15,6 +15,13 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+const SecretAdminRoute = () => {
+  const isUnlocked = typeof window !== "undefined"
+    && window.sessionStorage.getItem("secret_admin_unlocked") === "true";
+
+  return isUnlocked ? <Admin /> : <NotFound />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -28,7 +35,8 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 <Route path="/shop" element={<Shop />} />
                 <Route path="/chat" element={<Chat />} />
-                <Route path="/admin-panel-secret" element={<Admin />} />
+                <Route path="/dashboard-interno" element={<SecretAdminRoute />} />
+                <Route path="/admin" element={<NotFound />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>

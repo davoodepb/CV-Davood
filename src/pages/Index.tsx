@@ -28,7 +28,8 @@ const Index = () => {
     setTapCount(prev => {
       const next = prev + 1;
       if (next >= 5) {
-        navigate("/admin-panel-secret");
+        window.sessionStorage.setItem("secret_admin_unlocked", "true");
+        navigate("/dashboard-interno");
         return 0;
       }
       return next;

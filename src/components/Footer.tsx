@@ -24,7 +24,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
             <h3 className="text-lg font-heading font-bold mb-4">Davood Sharifi</h3>
-            <p className="text-sm opacity-70">Software Developer & Creative Designer based in Braga, Portugal.</p>
+            <p className="text-sm opacity-70">Software Engineer and IT Developer based in Braga, Portugal.</p>
             {/* Social Links */}
             {socialLinks.length > 0 && (
               <div className="flex gap-3 mt-4">

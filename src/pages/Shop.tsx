@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Navbar from "@/components/Navbar";
@@ -10,6 +10,18 @@ import { useShop } from "@/contexts/ShopContext";
 const Shop = () => {
   const { products, categories, loading } = useShop();
   const [active, setActive] = useState<string>("all");
+  const stripeCheckoutUrl = import.meta.env.VITE_STRIPE_CHECKOUT_URL as string | undefined;
+
+  const openStripeCheckout = (productTitle?: string) => {
+    if (!stripeCheckoutUrl) {
+      toast.error("Configure VITE_STRIPE_CHECKOUT_URL to enable payments.");
+      return;
+    }
+    if (productTitle) {
+      toast.success(`Redirecting to payment for \"${productTitle}\"...`);
+    }
+    window.open(stripeCheckoutUrl, "_blank", "noopener,noreferrer");
+  };
 
   const filtered = active === "all" ? products : products.filter((p) => p.category === active);
 
@@ -30,6 +42,11 @@ const Shop = () => {
           <p className="mt-3 text-muted-foreground max-w-xl mx-auto">
             Browse my collection of courses, games, films, books, and more.
           </p>
+          <div className="mt-6 flex justify-center">
+            <Button className="gap-2" onClick={() => openStripeCheckout()}>
+              <Truck size={16} /> Finalizar Compra
+            </Button>
+          </div>
         </div>
 
         {/* Category Filters */}
@@ -72,12 +89,21 @@ const Shop = () => {
                 </div>
                 <h3 className="font-heading font-semibold text-foreground mb-1">{product.title}</h3>
                 <p className="text-sm text-muted-foreground mb-4">{product.description}</p>
-                <Button
-                  className="w-full gap-2"
-                  onClick={() => toast.success(`"${product.title}" added to cart!`)}
-                >
-                  <ShoppingCart size={16} /> Add to Cart
-                </Button>
+                <div className="space-y-2">
+                  <Button
+                    className="w-full gap-2"
+                    onClick={() => toast.success(`\"${product.title}\" added to cart!`)}
+                  >
+                    <ShoppingCart size={16} /> Add to Cart
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={() => openStripeCheckout(product.title)}
+                  >
+                    <Truck size={16} /> Pagar
+                  </Button>
+                </div>
               </div>
             </div>
           ))}

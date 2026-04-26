@@ -27,8 +27,8 @@ export interface CVData {
 
 const defaultCV: CVData = {
   name: "Davood Sharifi",
-  title: "Software Developer & Creative Designer",
-  about: "I'm a 19-year-old passionate software developer and creative designer. I practice various sports including gym workouts, swimming, ping-pong, tennis, and volleyball. I am a disciplined and energetic person, always looking for opportunities to grow both personally and professionally. I combine technical skills with creative vision to deliver compelling digital experiences.",
+  title: "Software Engineer and IT Developer",
+  about: "I'm a 19-year-old passionate software engineer and IT developer. I practice various sports including gym workouts, swimming, ping-pong, tennis, and volleyball. I am a disciplined and energetic person, always looking for opportunities to grow both personally and professionally. I combine technical skills with creative vision to deliver compelling digital experiences.",
   phone: "+351 927 717 490",
   email: "davood00351@gmail.com",
   address: "Rua do Raio, nº 75, Braga",
