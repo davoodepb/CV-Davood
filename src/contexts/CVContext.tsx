@@ -23,6 +23,10 @@ export interface CVData {
   technicalSkills: { name: string; pct: number }[];
   creativeSkills: { name: string; pct: number }[];
   languages: { name: string; pct: number; level: string }[];
+  customLinks: { label: string; url: string }[];
+  certificates: { title: string; school: string; date: string; fileUrl: string; imgUrl: string }[];
+  gallery: { title: string; imgUrl: string }[];
+  videos: { title: string; videoUrl: string }[];
 }
 
 const defaultCV: CVData = {
@@ -89,6 +93,10 @@ const defaultCV: CVData = {
     { name: "Portuguese", pct: 90, level: "Fluent" },
     { name: "English", pct: 60, level: "Intermediate" },
   ],
+  customLinks: [],
+  certificates: [],
+  gallery: [],
+  videos: [],
 };
 
 const CV_DOC_PATH = "settings/cv";

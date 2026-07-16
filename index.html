@@ -63,5 +63,35 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Aggressive cleaner script to wipe out any Lovable / GPT watermark badge
+      (function() {
+        const cleanDOM = () => {
+          const targets = document.querySelectorAll('lovable-tagger, [id*="lovable"], [class*="lovable"], #gpt-tagger, #lovable-badge');
+          targets.forEach(el => el.remove());
+          
+          // Traverse Shadow DOM roots
+          const all = document.querySelectorAll('*');
+          all.forEach(el => {
+            if (el.shadowRoot) {
+              const badge = el.shadowRoot.querySelector('#lovable-badge, .lovable-badge, lovable-tagger, [id*="lovable"]');
+              if (badge) badge.remove();
+            }
+          });
+        };
+        
+        // Initial clean
+        cleanDOM();
+        
+        // Continuous interval
+        const interval = setInterval(cleanDOM, 250);
+        
+        // MutationObserver to catch dynamically injected custom elements
+        const observer = new MutationObserver((mutations) => {
+          cleanDOM();
+        });
+        observer.observe(document.documentElement, { childList: true, subtree: true });
+      })();
+    </script>
   </body>
 </html>

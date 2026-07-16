@@ -1,0 +1,22 @@
+- [x] Reset repository state to clean HEAD (`git restore .`)
+- [x] Install GSAP library for smooth ScrollTrigger parallax/blur effects
+- [x] Restyle `src/index.css` to feature warm white (`#FAF8F5`) and soft ivory (`#FFF8EE`) glass background with gold accents
+- [x] Install framer-motion dependency for UI animations
+- [x] Copy-paste `tubelight-navbar.tsx` into `/components/ui` folder, adapted for react-router-dom
+- [x] Redesign `src/components/Navbar.tsx` to render the newly integrated Tubelight Navbar
+- [x] Copy-paste `container-scroll-animation.tsx` into `/components/ui` folder, adapted for Vite + React
+- [x] Wrap the "About Me" section inside `ContainerScroll` on `src/pages/Index.tsx`
+- [x] Move video player from Hero banner to global root level in `src/App.tsx`
+- [x] Configure video background to cover all pages fixed fullscreen with 100% original real colors (no washing overlays)
+- [x] Set wrapper divs of Shop, Chat, and Admin components to bg-transparent to make video background visible
+- [x] Wrap the Index Hero banner content in a highly transparent white glass container card with increased opacity (bg-white/94) to ensure maximum contrast and clear readability
+- [x] Inject CSS selector to hide the Lovable tagger watermark spark logo
+- [x] Inject aggressive interval DOM cleaner script to completely delete Lovable tagger elements from the DOM and shadow DOM
+- [x] Implement a floating glassmorphic PWA "Install App" button in the bottom right corner of all pages to serve as an app installation shortcut and cover the watermark spot
+- [x] Add Volume2/VolumeX toggle controller button to unmute/mute background video sound safely
+- [x] Extend CVContext structure with customLinks, certificates, gallery, and videos arrays
+- [x] Implement a "Media & Links" tab panel inside Admin.tsx dashboard to manage these resources
+- [x] Render Course Certificates, Media Gallery, Videos, and Custom Links lists dynamically on Index.tsx
+- [x] Apply 3D card tilt and magnetic button highlights across all windows
+- [x] Terminate port 9009 and launch Vite dev server on port 5567
+- [x] Compile and verify production build bundles successfully
