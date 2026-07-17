@@ -19,4 +19,6 @@
 - [x] Render Course Certificates, Media Gallery, Videos, and Custom Links lists dynamically on Index.tsx
 - [x] Apply 3D card tilt and magnetic button highlights across all windows
 - [x] Terminate port 9009 and launch Vite dev server on port 5567
+- [x] Configure Git author details and commit all local changes
+- [x] Push all changes successfully to the GitHub repository: https://github.com/davoodepb/CV-Davood.git
 - [x] Compile and verify production build bundles successfully

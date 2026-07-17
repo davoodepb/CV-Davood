@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local Env and State Files
+.env
+social_state.json
+daily_social_report.md
