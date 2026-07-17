@@ -1,0 +1,39 @@
+name: Daily Social Media Agent
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # Corre todos os dias às 09:00 UTC (10:00 de Portugal)
+  workflow_dispatch:      # Permite-te correr manualmente com um clique no site do GitHub
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write     # Permite ao script atualizar o relatório e o estado no repositório
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run Social Media Agent
+        env:
+          AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+          AI_GATEWAY_MODEL: "openai/gpt-4o"
+        run: node src/scripts/social-media-agent.mjs
+
+      - name: Commit and Push Report & State
+        run: |
+          git config --global user.name "Social Media Agent"
+          git config --global user.email "davood00351@gmail.com"
+          git add social_state.json daily_social_report.md
+          git commit -m "chore: update daily social media report and state [skip ci]" || echo "No changes to commit"
+          git push
