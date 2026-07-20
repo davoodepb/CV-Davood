@@ -28,6 +28,8 @@ jobs:
         env:
           AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
           AI_GATEWAY_MODEL: "openai/gpt-4o"
+          COMPOSIO_API_KEY: ${{ secrets.COMPOSIO_API_KEY }}
+          YOUTUBE_CHANNEL_ID: ${{ secrets.YOUTUBE_CHANNEL_ID }}
         run: node src/scripts/social-media-agent.mjs
 
       - name: Commit and Push Report & State
