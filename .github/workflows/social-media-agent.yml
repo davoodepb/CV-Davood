@@ -32,10 +32,10 @@ jobs:
 
       - name: Commit and Push Report & State
         run: |
-          if [ -n "$(git status --porcelain social_state.json daily_social_report.md)" ]; then
+          git add -f social_state.json daily_social_report.md
+          if [ -n "$(git diff --cached --name-only)" ]; then
             git config --global user.name "Social Media Agent"
             git config --global user.email "davood00351@gmail.com"
-            git add social_state.json daily_social_report.md
             git commit -m "chore: update daily social media report and state [skip ci]"
             git push
           else
