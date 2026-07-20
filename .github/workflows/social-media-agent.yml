@@ -19,7 +19,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install dependencies
         run: npm install
@@ -32,8 +32,13 @@ jobs:
 
       - name: Commit and Push Report & State
         run: |
-          git config --global user.name "Social Media Agent"
-          git config --global user.email "davood00351@gmail.com"
-          git add social_state.json daily_social_report.md
-          git commit -m "chore: update daily social media report and state [skip ci]" || echo "No changes to commit"
-          git push
+          if [ -n "$(git status --porcelain social_state.json daily_social_report.md)" ]; then
+            git config --global user.name "Social Media Agent"
+            git config --global user.email "davood00351@gmail.com"
+            git add social_state.json daily_social_report.md
+            git commit -m "chore: update daily social media report and state [skip ci]"
+            git push
+          else
+            echo "No changes to commit"
+          fi
+
