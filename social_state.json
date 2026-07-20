@@ -1,9 +1,17 @@
 {
+  "crossPosted": [],
+  "metadataFixed": [],
+  "viralDates": [],
+  "lastRun": "2026-07-20T18:04:35.047Z",
+  "stats": {
+    "totalFixed": 0,
+    "totalPosted": 0,
+    "totalViral": 0
+  },
   "processedVideos": [
     "yt_1",
     "yt_2",
     "yt_4"
   ],
-  "lastRun": "2026-07-20T17:47:29.825Z",
   "limitDaily": 3
 }
