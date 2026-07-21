@@ -2,19 +2,21 @@ name: Daily Social Media Agent
 
 on:
   schedule:
-    - cron: '0 9 * * *'  # Corre todos os dias às 09:00 UTC (10:00 de Portugal)
-  workflow_dispatch:      # Permite-te correr manualmente com um clique no site do GitHub
+    - cron: '0 9 * * *'  # Runs daily at 09:00 UTC (10:00 Portugal)
+  workflow_dispatch:      # Allows manual trigger via GitHub UI
 
 jobs:
   run-agent:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write     # Permite ao script atualizar o relatório e o estado no repositório
+      contents: write     # Allows the script to update report and state in the repo
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for clean rebase
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -22,12 +24,13 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --ignore-scripts
 
       - name: Run Social Media Agent
         env:
           AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
-          AI_GATEWAY_MODEL: "openai/gpt-4o"
+          AI_GATEWAY_MODEL: "gemini-2.0-flash"
+          AI_GATEWAY_URL: ""
           COMPOSIO_API_KEY: ${{ secrets.COMPOSIO_API_KEY }}
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           YOUTUBE_CHANNEL_ID: ${{ secrets.YOUTUBE_CHANNEL_ID }}
@@ -35,11 +38,12 @@ jobs:
 
       - name: Commit and Push Report & State
         run: |
+          git config --global user.name "Social Media Agent"
+          git config --global user.email "davood00351@gmail.com"
           git add -f social_state.json daily_social_report.md
           if [ -n "$(git diff --cached --name-only)" ]; then
-            git config --global user.name "Social Media Agent"
-            git config --global user.email "davood00351@gmail.com"
             git commit -m "chore: update daily social media report and state [skip ci]"
+            git pull --rebase origin main || true
             git push
           else
             echo "No changes to commit"

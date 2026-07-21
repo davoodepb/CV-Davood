@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * ═══════════════════════════════════════════════════════════════
- *  SOCIAL MEDIA AGENT — Autonomous Daily Loop v2
+ *  SOCIAL MEDIA AGENT — Autonomous Daily Loop v3
  * ═══════════════════════════════════════════════════════════════
  * 
  * What this agent does every day:
@@ -13,20 +13,22 @@
  * 
  * API Strategy (layered fallback):
  *   - Layer 1: YouTube Data API v3 (direct, needs YOUTUBE_API_KEY)
- *   - Layer 2: Composio MCP (if COMPOSIO_API_KEY is set)
+ *   - Layer 2: Composio v3.1 REST API (if COMPOSIO_API_KEY is set)
  *   - Layer 3: YouTube RSS feed (free, no key needed)
- *   - Layer 4: AI Gateway for metadata generation (kluster.ai)
+ *   - Layer 4: AI text generation with fallback chain:
+ *       Groq (free) → OpenRouter → custom AI_GATEWAY
  * 
  * Required GitHub Secrets:
  *   - YOUTUBE_API_KEY (Google Cloud Console → YouTube Data API v3)
  *   - YOUTUBE_CHANNEL_ID (your channel ID, starts with UC...)
- *   - AI_GATEWAY_API_KEY (kluster.ai key for AI text generation)
- *   - COMPOSIO_API_KEY (optional, for Instagram/TikTok posting)
+ *   - AI_GATEWAY_API_KEY (Groq / OpenRouter / any OpenAI-compatible key)
+ *   - COMPOSIO_API_KEY (for Instagram/TikTok posting via Composio)
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 import https from 'node:https';
+import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -51,57 +53,93 @@ if (fs.existsSync(envFile)) {
 const YT_API_KEY      = process.env.YOUTUBE_API_KEY || '';
 const YT_CHANNEL_ID   = process.env.YOUTUBE_CHANNEL_ID || '';
 const AI_KEY          = process.env.AI_GATEWAY_API_KEY || '';
-const AI_MODEL        = process.env.AI_GATEWAY_MODEL || 'openai/gpt-4o';
+const AI_MODEL        = process.env.AI_GATEWAY_MODEL || 'llama-3.3-70b-versatile';
 const COMPOSIO_KEY    = process.env.COMPOSIO_API_KEY || '';
 const MAX_PER_DAY     = 5;
 const MAX_DURATION    = 300; // 5 min in seconds
 
-// ─── HTTP Helper ─────────────────────────────────────────────────────────────
-function httpGet(url) {
-  return new Promise((resolve, reject) => {
-    https.get(url, res => {
-      let data = '';
-      res.on('data', c => data += c);
-      res.on('end', () => {
-        try { resolve({ status: res.statusCode, data: JSON.parse(data) }); }
-        catch { resolve({ status: res.statusCode, data }); }
-      });
-    }).on('error', reject);
-  });
-}
+// ─── AI Provider fallback chain ──────────────────────────────────────────────
+// We try multiple providers in order until one works.
+const AI_PROVIDERS = [
+  {
+    name: 'Gemini',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+    defaultModel: 'gemini-2.0-flash',
+  },
+  {
+    name: 'Groq',
+    baseUrl: 'https://api.groq.com/openai/v1/chat/completions',
+    defaultModel: 'llama-3.3-70b-versatile',
+  },
+  {
+    name: 'OpenRouter',
+    baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
+    defaultModel: 'meta-llama/llama-3.3-70b-instruct:free',
+  },
+];
 
-function httpPost(url, body, headers = {}) {
+// ─── HTTP Helpers ────────────────────────────────────────────────────────────
+function httpRequest(url, options = {}) {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
-    const payload = JSON.stringify(body);
-    const req = https.request({
-      hostname: u.hostname, port: 443,
+    const isHttps = u.protocol === 'https:';
+    const lib = isHttps ? https : http;
+
+    const reqOpts = {
+      hostname: u.hostname,
+      port: u.port || (isHttps ? 443 : 80),
       path: u.pathname + u.search,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), ...headers }
-    }, res => {
+      method: options.method || 'GET',
+      headers: options.headers || {},
+    };
+
+    const req = lib.request(reqOpts, res => {
       let data = '';
       res.on('data', c => data += c);
       res.on('end', () => {
-        try { resolve({ status: res.statusCode, data: JSON.parse(data) }); }
-        catch { resolve({ status: res.statusCode, data }); }
+        let parsed;
+        try { parsed = JSON.parse(data); } catch { parsed = data; }
+        resolve({ status: res.statusCode, data: parsed, raw: data });
       });
     });
+
     req.on('error', reject);
-    req.write(payload);
+    req.setTimeout(30000, () => { req.destroy(new Error('Request timeout')); });
+
+    if (options.body) {
+      const payload = typeof options.body === 'string' ? options.body : JSON.stringify(options.body);
+      req.setHeader('Content-Type', 'application/json');
+      req.setHeader('Content-Length', Buffer.byteLength(payload));
+      req.write(payload);
+    }
+
     req.end();
   });
 }
 
+function httpGet(url, headers = {}) {
+  return httpRequest(url, { method: 'GET', headers });
+}
+
+function httpPost(url, body, headers = {}) {
+  return httpRequest(url, { method: 'POST', body, headers });
+}
+
 // ─── State ───────────────────────────────────────────────────────────────────
 function loadState() {
-  let s = { crossPosted: [], metadataFixed: [], viralDates: [], lastRun: null, stats: { totalFixed: 0, totalPosted: 0, totalViral: 0 } };
+  const defaults = {
+    crossPosted: [],
+    metadataFixed: [],
+    viralDates: [],
+    lastRun: null,
+    stats: { totalFixed: 0, totalPosted: 0, totalViral: 0 },
+  };
   try {
     const loaded = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
-    s = { ...s, ...loaded, stats: { ...s.stats, ...(loaded.stats || {}) } };
-  } catch { /* ignore */ }
-  return s;
+    return { ...defaults, ...loaded, stats: { ...defaults.stats, ...(loaded.stats || {}) } };
+  } catch { return defaults; }
 }
+
 function saveState(s) {
   s.lastRun = new Date().toISOString();
   fs.writeFileSync(STATE_FILE, JSON.stringify(s, null, 2), 'utf8');
@@ -118,7 +156,10 @@ async function ytApiListVideos(channelId, maxResults = 50) {
     // Get uploads playlist
     const ch = await httpGet(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${YT_API_KEY}`);
     const uploadsId = ch.data?.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
-    if (!uploadsId) return null;
+    if (!uploadsId) {
+      console.error('[YT-API] Could not find uploads playlist. Status:', ch.status);
+      return null;
+    }
 
     // Get videos from uploads playlist
     const pl = await httpGet(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${uploadsId}&maxResults=${maxResults}&key=${YT_API_KEY}`);
@@ -185,8 +226,10 @@ async function ytRssFallback(channelId) {
     const entries = res.data.match(/<entry>[\s\S]*?<\/entry>/g) || [];
     return entries.map(e => ({
       id: e.match(/<yt:videoId>(.*?)<\/yt:videoId>/)?.[1] || '',
-      title: e.match(/<media:title>(.*?)<\/media:title>/)?.[1] || e.match(/<title>(.*?)<\/title>/)?.[1] || '',
-      description: e.match(/<media:description>([\s\S]*?)<\/media:description>/)?.[1] || '',
+      title: (e.match(/<media:title>(.*?)<\/media:title>/)?.[1] || e.match(/<title>(.*?)<\/title>/)?.[1] || '')
+        .replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>'),
+      description: (e.match(/<media:description>([\s\S]*?)<\/media:description>/)?.[1] || '')
+        .replace(/&amp;/g, '&').replace(/&quot;/g, '"'),
       publishedAt: e.match(/<published>(.*?)<\/published>/)?.[1] || ''
     })).filter(v => v.id);
   } catch (e) {
@@ -196,39 +239,78 @@ async function ytRssFallback(channelId) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// COMPOSIO Integration (Layer 2)
+// COMPOSIO v3.1 REST API Integration
 // ═══════════════════════════════════════════════════════════════════════════
 
-async function composioAction(action, params) {
+async function composioAction(toolSlug, params) {
   if (!COMPOSIO_KEY) return { ok: false, reason: 'No Composio API key' };
   try {
+    console.log(`[COMPOSIO] Executing tool: ${toolSlug}...`);
     const res = await httpPost(
-      `https://backend.composio.dev/api/v2/actions/${action}/execute`,
+      `https://backend.composio.dev/api/v3.1/tools/execute/${toolSlug}`,
       { input: params },
       { 'x-api-key': COMPOSIO_KEY }
     );
-    return { ok: res.status >= 200 && res.status < 300, data: res.data };
+    const ok = res.status >= 200 && res.status < 300;
+    if (!ok) {
+      console.error(`[COMPOSIO] Tool ${toolSlug} failed with status ${res.status}:`, 
+        typeof res.data === 'string' ? res.data.substring(0, 200) : JSON.stringify(res.data).substring(0, 200));
+    }
+    return { ok, data: res.data, status: res.status };
   } catch (e) {
+    console.error(`[COMPOSIO] Error executing ${toolSlug}:`, e.message);
     return { ok: false, reason: e.message };
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// AI Gateway — Generate English Metadata
+// AI Text Generation — Multi-provider fallback chain
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function aiGenerate(prompt) {
-  if (!AI_KEY) return null;
-  try {
-    const res = await httpPost('https://api.kluster.ai/v1/chat/completions',
-      { model: AI_MODEL, messages: [{ role: 'user', content: prompt }], temperature: 0.7 },
-      { 'Authorization': `Bearer ${AI_KEY}` }
-    );
-    const text = res.data?.choices?.[0]?.message?.content?.trim();
-    if (!text) return null;
-    const match = text.match(/[\[{][\s\S]*[\]}]/);
-    return match ? JSON.parse(match[0]) : text;
-  } catch { return null; }
+  if (!AI_KEY) {
+    console.warn('[AI] No AI_GATEWAY_API_KEY set. Skipping AI generation.');
+    return null;
+  }
+
+  for (const provider of AI_PROVIDERS) {
+    if (!provider.baseUrl) continue;
+    
+    try {
+      console.log(`[AI] Trying ${provider.name}...`);
+      const res = await httpPost(
+        provider.baseUrl,
+        {
+          model: provider.defaultModel,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.7,
+          max_tokens: 1024,
+        },
+        { 'Authorization': `Bearer ${AI_KEY}` }
+      );
+
+      if (res.status >= 200 && res.status < 300) {
+        const text = res.data?.choices?.[0]?.message?.content?.trim();
+        if (!text) {
+          console.warn(`[AI] ${provider.name} returned empty content.`);
+          continue;
+        }
+        console.log(`[AI] ✅ ${provider.name} responded successfully.`);
+        // Try to extract JSON from the response
+        const match = text.match(/[\[{][\s\S]*[\]}]/);
+        return match ? JSON.parse(match[0]) : text;
+      } else {
+        console.warn(`[AI] ${provider.name} returned status ${res.status}: ${
+          typeof res.data === 'string' ? res.data.substring(0, 150) : JSON.stringify(res.data).substring(0, 150)
+        }`);
+      }
+    } catch (e) {
+      console.warn(`[AI] ${provider.name} failed: ${e.message}`);
+    }
+  }
+
+  console.error('[AI] All providers failed.');
+  return null;
 }
 
 async function generateMetadata(title, description, platform = 'youtube') {
@@ -270,6 +352,19 @@ function fmtDuration(sec) {
   const m = Math.floor(sec / 60);
   const s = sec % 60;
   return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+/** Safe string conversion for tags — handles string, array, null, undefined */
+function safeTags(tags) {
+  if (!tags) return '';
+  if (Array.isArray(tags)) return tags.join(', ');
+  return String(tags);
+}
+
+/** Safe split for tags — never crashes on null/undefined */
+function safeTagsArray(tags) {
+  const str = safeTags(tags);
+  return str ? str.split(',').map(t => t.trim()).filter(Boolean) : [];
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -333,13 +428,12 @@ async function taskFixMetadata(videos, state, report) {
   for (const v of needsFix) {
     const meta = await generateMetadata(v.title, v.description, 'youtube');
 
-    // Try to update via YouTube API (needs OAuth, not just API key)
-    // For now, log what needs fixing and use Composio as backup
+    // Try to update via Composio (which has OAuth access)
     const updateResult = await composioAction('YOUTUBE_UPDATE_VIDEO', {
       videoId: v.id,
       title: meta.title,
       description: meta.description,
-      tags: meta.tags.split(',').map(t => t.trim())
+      tags: safeTagsArray(meta.tags)
     });
 
     if (updateResult.ok) {
@@ -351,12 +445,12 @@ async function taskFixMetadata(videos, state, report) {
       report.push(`| ${v.title?.substring(0, 30) || v.id} | ${v.issues?.join(' | ') || '?'} | ⏳ Queued |`);
       // Log suggested fixes for manual review
       report.push(`  - **Suggested Title**: *"${meta.title}"*`);
-      report.push(`  - **Suggested Tags**: ${meta.tags}`);
+      report.push(`  - **Suggested Tags**: ${safeTags(meta.tags)}`);
     }
   }
 
   report.push('');
-  report.push(`> **Summary**: ${fixedCount} videos updated, ${needsFix.length - fixedCount} need manual fixing (requires YouTube OAuth).`);
+  report.push(`> **Summary**: ${fixedCount} videos updated, ${needsFix.length - fixedCount} need manual fixing (requires YouTube OAuth via Composio).`);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -423,15 +517,18 @@ async function taskCrossPost(videos, state, report) {
     const igStatus = igResult.ok ? '✅' : '⏳';
     const tkStatus = tkResult.ok ? '✅' : '⏳';
 
-    state.crossPosted.push(v.id);
-    state.stats.totalPosted++;
-    posted++;
+    // FIX: Only mark as cross-posted if at least ONE platform succeeded
+    if (igResult.ok || tkResult.ok) {
+      state.crossPosted.push(v.id);
+      state.stats.totalPosted++;
+      posted++;
+    }
 
     report.push(`| ${v.title?.substring(0, 35)} | ${fmtDuration(v.durationSec)} | ${igStatus} | ${tkStatus} |`);
   }
 
   report.push('');
-  report.push(`> **Today**: ${posted} videos queued for cross-posting.`);
+  report.push(`> **Today**: ${posted} videos cross-posted successfully.`);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -500,13 +597,13 @@ JSON: {"title":"...","description":"...","tags":"...","hook":"...","keyPoints":[
       script.keyPoints.forEach(p => report.push(`  - ${p}`));
     }
     report.push(`- **CTA**: *"${script.callToAction || 'Follow for more!'}"*`);
-    report.push(`- **Tags**: ${script.tags || 'viral, shorts, tech'}`);
+    report.push(`- **Tags**: ${safeTags(script.tags) || 'viral, shorts, tech'}`);
 
     // Try uploading via Composio
     if (COMPOSIO_KEY && !state.viralDates.includes(today)) {
       const ytUpload = await composioAction('YOUTUBE_UPLOAD_SHORT', {
         title: script.title, description: script.description,
-        tags: (script.tags || '').split(',').map(t => t.trim())
+        tags: safeTagsArray(script.tags)
       });
       const igUpload = await composioAction('INSTAGRAM_CREATE_REEL', {
         caption: `${script.title}\n\n${script.description}`
@@ -521,11 +618,14 @@ JSON: {"title":"...","description":"...","tags":"...","hook":"...","keyPoints":[
       report.push(`- Instagram Reels: ${igUpload.ok ? '✅ Posted' : '⏳ ' + (igUpload.reason || 'Needs video file')}`);
       report.push(`- TikTok: ${tkUpload.ok ? '✅ Posted' : '⏳ ' + (tkUpload.reason || 'Needs video file')}`);
 
-      state.viralDates.push(today);
-      state.stats.totalViral++;
+      // Only mark viral date if at least one upload succeeded
+      if (ytUpload.ok || igUpload.ok || tkUpload.ok) {
+        state.viralDates.push(today);
+        state.stats.totalViral++;
+      }
     }
   } else {
-    report.push('- ⚠️ Could not generate script (no AI Gateway key or API error).');
+    report.push('- ⚠️ Could not generate script (no AI key or all API providers failed).');
     report.push(`- **Manual topic suggestion**: *"${topic}"*`);
   }
 }
@@ -538,7 +638,7 @@ async function main() {
   const startTime = Date.now();
   
   console.log('╔═══════════════════════════════════════════════════════╗');
-  console.log('║  SOCIAL MEDIA AGENT — Autonomous Daily Loop v2      ║');
+  console.log('║  SOCIAL MEDIA AGENT — Autonomous Daily Loop v3      ║');
   console.log(`║  ${new Date().toISOString()}                  ║`);
   console.log('╚═══════════════════════════════════════════════════════╝');
 
@@ -596,7 +696,7 @@ async function main() {
   report.push(`| Execution time | ${elapsed}s |`);
   report.push('');
   report.push('---');
-  report.push(`*Generated by Social Media Agent v2 • ${now.toISOString()}*`);
+  report.push(`*Generated by Social Media Agent v3 • ${now.toISOString()}*`);
 
   saveState(state);
   fs.writeFileSync(REPORT_FILE, report.join('\n'), 'utf8');
