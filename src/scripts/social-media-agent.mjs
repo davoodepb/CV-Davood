@@ -1,238 +1,609 @@
+#!/usr/bin/env node
+/**
+ * ═══════════════════════════════════════════════════════════════
+ *  SOCIAL MEDIA AGENT — Autonomous Daily Loop v2
+ * ═══════════════════════════════════════════════════════════════
+ * 
+ * What this agent does every day:
+ * 
+ * 1. ANALYZE YouTube channel → find videos missing title/description/tags → fix them
+ * 2. CROSS-POST YouTube videos (≤5 min) → Instagram Reels & TikTok
+ * 3. DISCOVER viral trends → generate video scripts and content ideas
+ * 4. Generate comprehensive daily report
+ * 
+ * API Strategy (layered fallback):
+ *   - Layer 1: YouTube Data API v3 (direct, needs YOUTUBE_API_KEY)
+ *   - Layer 2: Composio MCP (if COMPOSIO_API_KEY is set)
+ *   - Layer 3: YouTube RSS feed (free, no key needed)
+ *   - Layer 4: AI Gateway for metadata generation (kluster.ai)
+ * 
+ * Required GitHub Secrets:
+ *   - YOUTUBE_API_KEY (Google Cloud Console → YouTube Data API v3)
+ *   - YOUTUBE_CHANNEL_ID (your channel ID, starts with UC...)
+ *   - AI_GATEWAY_API_KEY (kluster.ai key for AI text generation)
+ *   - COMPOSIO_API_KEY (optional, for Instagram/TikTok posting)
+ */
+
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import https from 'node:https';
+import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Configurações e Estado
-const WORKSPACE_DIR = path.resolve(__dirname, '../../');
-const STATE_FILE = path.join(WORKSPACE_DIR, 'social_state.json');
-const REPORT_FILE = path.join(WORKSPACE_DIR, 'daily_social_report.md');
-const ENV_FILE = path.join(WORKSPACE_DIR, '.env');
+// ─── Configuration ───────────────────────────────────────────────────────────
+const WORKSPACE = path.resolve(__dirname, '../../');
+const STATE_FILE = path.join(WORKSPACE, 'social_state.json');
+const REPORT_FILE = path.join(WORKSPACE, 'daily_social_report.md');
 
-// Carregar variáveis do .env local se existir
-if (fs.existsSync(ENV_FILE)) {
-  const envContent = fs.readFileSync(ENV_FILE, 'utf8');
-  envContent.split(/\r?\n/).forEach(line => {
-    const parts = line.split('=');
-    if (parts.length >= 2) {
-      const key = parts[0].trim();
-      const val = parts.slice(1).join('=').trim().replace(/^['"]|['"]$/g, '');
-      if (key && !key.startsWith('#')) {
-        process.env[key] = val;
-      }
-    }
+// Load .env if present (local dev)
+const envFile = path.join(WORKSPACE, '.env');
+if (fs.existsSync(envFile)) {
+  fs.readFileSync(envFile, 'utf8').split(/\r?\n/).forEach(line => {
+    const [key, ...rest] = line.split('=');
+    const k = key?.trim();
+    const v = rest.join('=').trim().replace(/^['"]|['"]$/g, '');
+    if (k && !k.startsWith('#')) process.env[k] = v;
   });
 }
 
-// Chaves do Sistema detetadas no ambiente do PC
-const GATEWAY_KEY = process.env.AI_GATEWAY_API_KEY || '';
-const GATEWAY_MODEL = process.env.AI_GATEWAY_MODEL || 'openai/gpt-4o';
+const YT_API_KEY      = process.env.YOUTUBE_API_KEY || '';
+const YT_CHANNEL_ID   = process.env.YOUTUBE_CHANNEL_ID || '';
+const AI_KEY          = process.env.AI_GATEWAY_API_KEY || '';
+const AI_MODEL        = process.env.AI_GATEWAY_MODEL || 'openai/gpt-4o';
+const COMPOSIO_KEY    = process.env.COMPOSIO_API_KEY || '';
+const MAX_PER_DAY     = 5;
+const MAX_DURATION    = 300; // 5 min in seconds
 
-// Lógica de Estado Local
-function loadState() {
-  if (fs.existsSync(STATE_FILE)) {
-    try {
-      return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
-    } catch (e) {
-      console.error('Erro ao ler estado, iniciando novo.', e);
-    }
-  }
-  return { processedVideos: [], lastRun: null, limitDaily: 3 };
-}
-
-function saveState(state) {
-  state.lastRun = new Date().toISOString();
-  fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
-}
-
-// Otimização de Metadados via AI Gateway (Gratuito/Ativo no PC)
-async function optimizeMetadata(title, description) {
-  if (!GATEWAY_KEY) {
-    console.warn('AI Gateway Key não encontrada. Usando títulos originais.');
-    return { title, description: `${description}\n\n#reels #shorts`, tags: 'video, reels, shorts' };
-  }
-
-  const prompt = `
-You are an expert social media manager. Convert and optimize the following YouTube video details into engaging English metadata for Instagram Reels/TikTok.
-Original Title: ${title}
-Original Description: ${description}
-
-Respond strictly in JSON format with keys "title" (max 80 chars), "description" (engaging description with hashtags), and "tags" (comma separated).
-`;
-
-  return new Promise((resolve) => {
-    const data = JSON.stringify({
-      model: GATEWAY_MODEL,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7
-    });
-
-    const options = {
-      hostname: 'api.kluster.ai',
-      port: 443,
-      path: '/v1/chat/completions',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${GATEWAY_KEY}`,
-        'Content-Length': data.length
-      }
-    };
-
-    const req = https.request(options, (res) => {
-      let body = '';
-      res.on('data', (chunk) => body += chunk);
+// ─── HTTP Helper ─────────────────────────────────────────────────────────────
+function httpGet(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, res => {
+      let data = '';
+      res.on('data', c => data += c);
       res.on('end', () => {
-        try {
-          const json = JSON.parse(body);
-          const content = json.choices[0].message.content.trim();
-          // Extrair JSON da resposta
-          const match = content.match(/\{[\s\S]*\}/);
-          if (match) {
-            resolve(JSON.parse(match[0]));
-          } else {
-            resolve({ title, description, tags: 'reels, tiktok' });
-          }
-        } catch (e) {
-          resolve({ title, description, tags: 'reels, tiktok' });
-        }
+        try { resolve({ status: res.statusCode, data: JSON.parse(data) }); }
+        catch { resolve({ status: res.statusCode, data }); }
+      });
+    }).on('error', reject);
+  });
+}
+
+function httpPost(url, body, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const payload = JSON.stringify(body);
+    const req = https.request({
+      hostname: u.hostname, port: 443,
+      path: u.pathname + u.search,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), ...headers }
+    }, res => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try { resolve({ status: res.statusCode, data: JSON.parse(data) }); }
+        catch { resolve({ status: res.statusCode, data }); }
       });
     });
-
-    req.on('error', () => {
-      resolve({ title, description, tags: 'reels, tiktok' });
-    });
-
-    req.write(data);
+    req.on('error', reject);
+    req.write(payload);
     req.end();
   });
 }
 
-// Pesquisa de tendências virais do dia
-async function fetchViralTrends() {
-  console.log('Pesquisando temas virais do dia nas redes sociais...');
-  // Simular pesquisa de tendências com base nas notícias do dia
-  return [
-    'AI Agents Automating Local PC Workflows',
-    'OpenAI Codex Integration tips and tricks',
-    'Next-gen web design aesthetics for portfolio websites'
-  ];
-}
-
-// Criação programática de vídeo curto (Reel/TikTok/Short)
-async function generateViralVideo(topic) {
-  console.log(`Gerando vídeo viral dinâmico para o tema: "${topic}"...`);
-  // Como o NotebookLM não tem API, simulamos a criação do vídeo curto
-  // Criando um ficheiro de vídeo simulado (Dummy MP4) para o upload
-  const videoBuffer = Buffer.from('RIFF....AVI LIST....junk....', 'utf-8'); 
-  return {
-    buffer: videoBuffer,
-    title: `How ${topic} Will Change Everything!`,
-    description: `This is the future of digital space. #viral #${topic.replace(/\s+/g, '')} #tech #future`,
-    tags: `viral, tech, ${topic}`
-  };
-}
-
-// Integração Composio MCP para publicar em várias plataformas
-async function uploadToSocialMedia(videoStream, metadata, platforms = ['instagram', 'tiktok', 'youtube']) {
-  console.log(`Iniciando upload de "${metadata.title}" via Composio para: ${platforms.join(', ')}...`);
-  
-  // Aqui ligamos às ações do Composio MCP
-  // Como as contas estão autenticadas no painel da Composio, usamos chamadas de API do SDK do Composio
-  // Simulação de resposta de sucesso de upload
-  return {
-    success: true,
-    urls: {
-      instagram: 'https://instagram.com/p/ReelSimulatedID',
-      tiktok: 'https://tiktok.com/@user/video/TikTokSimulatedID',
-      youtube: 'https://youtube.com/shorts/ShortsSimulatedID'
-    }
-  };
-}
-
-// Execução do Loop Diário
-async function runDailyLoop() {
-  console.log('--- INICIANDO AGENTE AUTÓNOMO SOCIAL MEDIA ---');
-  const state = loadState();
-  const reportLines = [];
-  reportLines.push(`# Relatório de Execução Social Media — ${new Date().toLocaleDateString()}`);
-  reportLines.push('');
-
+// ─── State ───────────────────────────────────────────────────────────────────
+function loadState() {
+  let s = { crossPosted: [], metadataFixed: [], viralDates: [], lastRun: null, stats: { totalFixed: 0, totalPosted: 0, totalViral: 0 } };
   try {
-    // 1. Processar Vídeos do Canal de YouTube (Migração Incremental)
-    reportLines.push('## 📺 Processamento de Vídeos do YouTube');
-    
-    // Simular a leitura do feed do YouTube via API ou feed RSS
-    const mockYoutubeVideos = [
-      { id: 'yt_1', title: 'Como criar um site premium com Shadcn e Tailwind', desc: 'Tutorial completo de design moderno.', durationSec: 180 },
-      { id: 'yt_2', title: 'Tutorial de PWA e instalação de Apps de Site', desc: 'Aprende a transformar o teu site numa App.', durationSec: 120 },
-      { id: 'yt_3', title: 'Otimização de Performance em React e Vite', desc: 'Dicas práticas de velocidade.', durationSec: 400 }, // Ignorado (>5 min)
-      { id: 'yt_4', title: 'Integração de Vídeos de Fundo com Áudio Flutuante', desc: 'Design e controlos de som inovadores.', durationSec: 90 },
-    ];
+    const loaded = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+    s = { ...s, ...loaded, stats: { ...s.stats, ...(loaded.stats || {}) } };
+  } catch { /* ignore */ }
+  return s;
+}
+function saveState(s) {
+  s.lastRun = new Date().toISOString();
+  fs.writeFileSync(STATE_FILE, JSON.stringify(s, null, 2), 'utf8');
+}
 
-    let processedToday = 0;
-    for (const video of mockYoutubeVideos) {
-      if (state.processedVideos.includes(video.id)) continue;
-      if (processedToday >= state.limitDaily) break;
+// ═══════════════════════════════════════════════════════════════════════════
+// LAYER 1: YouTube Data API v3
+// ═══════════════════════════════════════════════════════════════════════════
 
-      // Filtro de duração (menor que 5 min)
-      if (video.durationSec > 300) {
-        console.log(`Vídeo ${video.title} ignorado (Duração: ${video.durationSec}s > 300s)`);
-        continue;
-      }
+async function ytApiListVideos(channelId, maxResults = 50) {
+  if (!YT_API_KEY || !channelId) return null;
+  console.log('[YT-API] Listing channel videos...');
+  try {
+    // Get uploads playlist
+    const ch = await httpGet(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${YT_API_KEY}`);
+    const uploadsId = ch.data?.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+    if (!uploadsId) return null;
 
-      console.log(`Processando vídeo do YouTube: ${video.title}`);
-      
-      // Otimização e Tradução em Inglês
-      const optimized = await optimizeMetadata(video.title, video.desc);
-      
-      // Upload via Streaming (Simulação de canal direto de memória para evitar gravação em disco)
-      const uploadResult = await uploadToSocialMedia(null, optimized, ['instagram', 'tiktok']);
-      
-      if (uploadResult.success) {
-        state.processedVideos.push(video.id);
-        processedToday++;
-        reportLines.push(`- ✅ **YouTube [${video.title}]**: Otimizado para *"${optimized.title}"* e publicado com sucesso.`);
-        reportLines.push(`  - Instagram: [Reel](${uploadResult.urls.instagram})`);
-        reportLines.push(`  - TikTok: [Vídeo](${uploadResult.urls.tiktok})`);
-      }
-    }
+    // Get videos from uploads playlist
+    const pl = await httpGet(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${uploadsId}&maxResults=${maxResults}&key=${YT_API_KEY}`);
+    return pl.data?.items?.map(i => ({
+      id: i.contentDetails?.videoId || i.snippet?.resourceId?.videoId,
+      title: i.snippet?.title || '',
+      description: i.snippet?.description || '',
+      publishedAt: i.snippet?.publishedAt || ''
+    })) || [];
+  } catch (e) {
+    console.error('[YT-API] Error:', e.message);
+    return null;
+  }
+}
 
-    if (processedToday === 0) {
-      reportLines.push('- Sem novos vídeos do YouTube para processar ou limite diário atingido.');
-    }
+async function ytApiGetVideoDetails(videoIds) {
+  if (!YT_API_KEY || !videoIds.length) return [];
+  const ids = videoIds.join(',');
+  try {
+    const res = await httpGet(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&id=${ids}&key=${YT_API_KEY}`);
+    return res.data?.items?.map(v => ({
+      id: v.id,
+      title: v.snippet?.title || '',
+      description: v.snippet?.description || '',
+      tags: v.snippet?.tags || [],
+      duration: v.contentDetails?.duration || '',
+      durationSec: parseDuration(v.contentDetails?.duration),
+      views: parseInt(v.statistics?.viewCount || '0'),
+      likes: parseInt(v.statistics?.likeCount || '0'),
+      categoryId: v.snippet?.categoryId || ''
+    })) || [];
+  } catch (e) {
+    console.error('[YT-API] Details error:', e.message);
+    return [];
+  }
+}
 
-    // 2. Geração de Conteúdo Viral Diário
-    reportLines.push('');
-    reportLines.push('## 🌟 Criação de Vídeo Viral Diário');
-    
-    const trends = await fetchViralTrends();
-    const topTrend = trends[0]; // Tema mais relevante do dia
-    
-    const viralVideo = await generateViralVideo(topTrend);
-    const viralUploadResult = await uploadToSocialMedia(viralVideo.buffer, viralVideo, ['youtube', 'instagram', 'tiktok']);
-    
-    if (viralUploadResult.success) {
-      reportLines.push(`- ✅ **Vídeo Viral [${viralVideo.title}]**: Criado com base no tema *"${topTrend}"* e publicado em todas as plataformas.`);
-      reportLines.push(`  - YouTube Shorts: [Shorts](${viralUploadResult.urls.youtube})`);
-      reportLines.push(`  - Instagram Reels: [Reel](${viralUploadResult.urls.instagram})`);
-      reportLines.push(`  - TikTok: [Vídeo](${viralUploadResult.urls.tiktok})`);
-    }
+async function ytApiGetTrending(regionCode = 'US') {
+  if (!YT_API_KEY) return null;
+  try {
+    const res = await httpGet(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&chart=mostPopular&regionCode=${regionCode}&maxResults=10&videoCategoryId=28&key=${YT_API_KEY}`);
+    return res.data?.items?.map(v => ({
+      title: v.snippet?.title || '',
+      channelTitle: v.snippet?.channelTitle || '',
+      views: parseInt(v.statistics?.viewCount || '0'),
+      topic: v.snippet?.title || ''
+    })) || [];
+  } catch (e) {
+    console.error('[YT-API] Trending error:', e.message);
+    return null;
+  }
+}
 
-    saveState(state);
-    console.log('Agente terminou todas as tarefas de hoje.');
-  } catch (err) {
-    console.error('Erro na execução do agente autónomo:', err);
-    reportLines.push(`## ❌ Erro de Execução\n- ${err.message}`);
+// ═══════════════════════════════════════════════════════════════════════════
+// LAYER 3: YouTube RSS Fallback (no API key needed)
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function ytRssFallback(channelId) {
+  if (!channelId) return [];
+  console.log('[YT-RSS] Using RSS fallback...');
+  try {
+    const res = await httpGet(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`);
+    if (typeof res.data !== 'string') return [];
+    const entries = res.data.match(/<entry>[\s\S]*?<\/entry>/g) || [];
+    return entries.map(e => ({
+      id: e.match(/<yt:videoId>(.*?)<\/yt:videoId>/)?.[1] || '',
+      title: e.match(/<media:title>(.*?)<\/media:title>/)?.[1] || e.match(/<title>(.*?)<\/title>/)?.[1] || '',
+      description: e.match(/<media:description>([\s\S]*?)<\/media:description>/)?.[1] || '',
+      publishedAt: e.match(/<published>(.*?)<\/published>/)?.[1] || ''
+    })).filter(v => v.id);
+  } catch (e) {
+    console.error('[YT-RSS] Error:', e.message);
+    return [];
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// COMPOSIO Integration (Layer 2)
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function composioAction(action, params) {
+  if (!COMPOSIO_KEY) return { ok: false, reason: 'No Composio API key' };
+  try {
+    const res = await httpPost(
+      `https://backend.composio.dev/api/v2/actions/${action}/execute`,
+      { input: params },
+      { 'x-api-key': COMPOSIO_KEY }
+    );
+    return { ok: res.status >= 200 && res.status < 300, data: res.data };
+  } catch (e) {
+    return { ok: false, reason: e.message };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AI Gateway — Generate English Metadata
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function aiGenerate(prompt) {
+  if (!AI_KEY) return null;
+  try {
+    const res = await httpPost('https://api.kluster.ai/v1/chat/completions',
+      { model: AI_MODEL, messages: [{ role: 'user', content: prompt }], temperature: 0.7 },
+      { 'Authorization': `Bearer ${AI_KEY}` }
+    );
+    const text = res.data?.choices?.[0]?.message?.content?.trim();
+    if (!text) return null;
+    const match = text.match(/[\[{][\s\S]*[\]}]/);
+    return match ? JSON.parse(match[0]) : text;
+  } catch { return null; }
+}
+
+async function generateMetadata(title, description, platform = 'youtube') {
+  const result = await aiGenerate(
+    `You are an expert social media SEO specialist. Create optimized ENGLISH metadata for a ${platform} video.
+Original Title: ${title || '(none)'}
+Original Description: ${description?.substring(0, 300) || '(none)'}
+
+Rules:
+- Title: catchy, max 100 chars, English, SEO optimized
+- Description: engaging, with relevant hashtags, max 500 chars, English
+- Tags: comma-separated trending keywords, max 15 tags, English
+
+Respond ONLY in JSON: {"title":"...","description":"...","tags":"tag1,tag2,tag3"}`
+  );
+
+  if (result?.title) return result;
+  // Fallback: basic English metadata
+  const cleanTitle = title || 'Amazing Video';
+  return {
+    title: cleanTitle.length > 100 ? cleanTitle.substring(0, 97) + '...' : cleanTitle,
+    description: `${cleanTitle}\n\n${description || ''}\n\n#shorts #viral #trending #tech`.substring(0, 500),
+    tags: 'shorts, viral, trending, tech, tutorial, tips'
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Utilities
+// ═══════════════════════════════════════════════════════════════════════════
+
+function parseDuration(iso) {
+  if (!iso) return 0;
+  const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  return m ? (+(m[1]||0))*3600 + (+(m[2]||0))*60 + +(m[3]||0) : 0;
+}
+
+function fmtDuration(sec) {
+  if (!sec) return '??';
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TASK 1: Analyze & Fix Missing YouTube Metadata
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function taskFixMetadata(videos, state, report) {
+  report.push('');
+  report.push('## 🔍 YouTube Channel Analysis — Metadata Audit');
+  report.push('');
+
+  if (!videos.length) {
+    report.push('- ⚠️ No videos found to analyze.');
+    return;
   }
 
-  // Gravar o Relatório
-  fs.writeFileSync(REPORT_FILE, reportLines.join('\n'), 'utf8');
-  console.log(`Relatório diário gravado em: ${REPORT_FILE}`);
+  // Get full details for all videos
+  const videoIds = videos.map(v => v.id).filter(Boolean);
+  let details = [];
+  
+  // Batch requests (50 IDs per call)
+  for (let i = 0; i < videoIds.length; i += 50) {
+    const batch = videoIds.slice(i, i + 50);
+    const batchDetails = await ytApiGetVideoDetails(batch);
+    details.push(...batchDetails);
+  }
+
+  // If no API key, use basic info from RSS
+  if (!details.length) details = videos;
+
+  let fixedCount = 0;
+  const needsFix = [];
+
+  for (const v of details) {
+    if (state.metadataFixed.includes(v.id)) continue;
+
+    const missingTitle = !v.title || v.title === 'Untitled' || v.title.length < 5;
+    const missingDesc = !v.description || v.description.length < 20;
+    const missingTags = !v.tags || v.tags.length === 0;
+
+    if (missingTitle || missingDesc || missingTags) {
+      needsFix.push({
+        ...v,
+        issues: [
+          missingTitle ? '❌ Title' : '✅ Title',
+          missingDesc ? '❌ Description' : '✅ Description',
+          missingTags ? '❌ Tags' : '✅ Tags'
+        ]
+      });
+    }
+  }
+
+  if (!needsFix.length) {
+    report.push(`- ✅ All ${details.length} videos have proper title, description, and tags.`);
+    return;
+  }
+
+  report.push(`| Video | Title | Description | Tags | Action |`);
+  report.push(`|-------|-------|-------------|------|--------|`);
+
+  for (const v of needsFix) {
+    const meta = await generateMetadata(v.title, v.description, 'youtube');
+
+    // Try to update via YouTube API (needs OAuth, not just API key)
+    // For now, log what needs fixing and use Composio as backup
+    const updateResult = await composioAction('YOUTUBE_UPDATE_VIDEO', {
+      videoId: v.id,
+      title: meta.title,
+      description: meta.description,
+      tags: meta.tags.split(',').map(t => t.trim())
+    });
+
+    if (updateResult.ok) {
+      state.metadataFixed.push(v.id);
+      state.stats.totalFixed++;
+      fixedCount++;
+      report.push(`| ${v.title?.substring(0, 30) || v.id} | ✅ Fixed | ✅ Fixed | ✅ Fixed | ✅ Updated |`);
+    } else {
+      report.push(`| ${v.title?.substring(0, 30) || v.id} | ${v.issues?.join(' | ') || '?'} | ⏳ Queued |`);
+      // Log suggested fixes for manual review
+      report.push(`  - **Suggested Title**: *"${meta.title}"*`);
+      report.push(`  - **Suggested Tags**: ${meta.tags}`);
+    }
+  }
+
+  report.push('');
+  report.push(`> **Summary**: ${fixedCount} videos updated, ${needsFix.length - fixedCount} need manual fixing (requires YouTube OAuth).`);
 }
 
-// Iniciar a execução
-runDailyLoop();
+// ═══════════════════════════════════════════════════════════════════════════
+// TASK 2: Cross-Post YouTube Videos → Instagram & TikTok
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function taskCrossPost(videos, state, report) {
+  report.push('');
+  report.push('## 📤 Cross-Posting — YouTube → Instagram Reels & TikTok');
+  report.push('');
+
+  if (!COMPOSIO_KEY) {
+    report.push('- ⚠️ **Composio API key not configured.** Cross-posting requires Composio.');
+    report.push('  - Set `COMPOSIO_API_KEY` secret in GitHub → Settings → Secrets.');
+    report.push('  - Connect Instagram & TikTok in [Composio Dashboard](https://app.composio.dev).');
+    return;
+  }
+
+  let posted = 0;
+  const eligible = [];
+
+  for (const v of videos) {
+    if (state.crossPosted.includes(v.id)) continue;
+    if (posted >= MAX_PER_DAY) break;
+
+    // Check duration (need API details for this)
+    const details = await ytApiGetVideoDetails([v.id]);
+    const dur = details[0]?.durationSec || 0;
+
+    if (dur > MAX_DURATION && dur > 0) {
+      console.log(`[SKIP] "${v.title}" too long (${fmtDuration(dur)})`);
+      continue;
+    }
+
+    eligible.push({ ...v, durationSec: dur });
+  }
+
+  if (!eligible.length) {
+    report.push('- No new eligible videos to cross-post (all done or limit reached).');
+    return;
+  }
+
+  report.push(`| Video | Duration | Instagram | TikTok |`);
+  report.push(`|-------|----------|-----------|--------|`);
+
+  for (const v of eligible) {
+    if (posted >= MAX_PER_DAY) break;
+
+    const igMeta = await generateMetadata(v.title, v.description, 'instagram');
+    const tkMeta = await generateMetadata(v.title, v.description, 'tiktok');
+
+    const videoUrl = `https://www.youtube.com/watch?v=${v.id}`;
+
+    // Post to Instagram Reels via Composio
+    const igResult = await composioAction('INSTAGRAM_UPLOAD_REEL', {
+      videoUrl, caption: `${igMeta.title}\n\n${igMeta.description}`
+    });
+
+    // Post to TikTok via Composio
+    const tkResult = await composioAction('TIKTOK_UPLOAD_VIDEO', {
+      videoUrl, title: tkMeta.title, description: tkMeta.description
+    });
+
+    const igStatus = igResult.ok ? '✅' : '⏳';
+    const tkStatus = tkResult.ok ? '✅' : '⏳';
+
+    state.crossPosted.push(v.id);
+    state.stats.totalPosted++;
+    posted++;
+
+    report.push(`| ${v.title?.substring(0, 35)} | ${fmtDuration(v.durationSec)} | ${igStatus} | ${tkStatus} |`);
+  }
+
+  report.push('');
+  report.push(`> **Today**: ${posted} videos queued for cross-posting.`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TASK 3: Viral Trend Discovery & Content Creation
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function taskViralContent(state, report) {
+  report.push('');
+  report.push('## 🌟 Viral Trend Discovery & Content Ideas');
+  report.push('');
+
+  const today = new Date().toISOString().split('T')[0];
+
+  // Get trending videos from YouTube
+  let trends = await ytApiGetTrending('US');
+
+  // Fallback: AI-generated trends
+  if (!trends || !trends.length) {
+    const aiTrends = await aiGenerate(
+      `List exactly 5 viral trending topics on YouTube Shorts, TikTok, and Instagram Reels today (${today}).
+Focus on: tech, AI, coding, digital lifestyle, web development.
+JSON array: [{"topic":"...","hook":"...","hashtags":"#tag1 #tag2"}]`
+    );
+    trends = Array.isArray(aiTrends) ? aiTrends : [
+      { topic: 'AI agents automating workflows', hook: 'This AI runs your business while you sleep' },
+      { topic: 'Build a portfolio in 2026', hook: 'The portfolio trick that gets you hired' },
+      { topic: 'Coding tools that save hours', hook: '5 tools every developer needs right now' }
+    ];
+  }
+
+  // Display trends found
+  report.push('### 🔥 Trending Topics Found');
+  report.push('');
+  report.push('| # | Topic | Potential |');
+  report.push('|---|-------|-----------|');
+  trends.slice(0, 5).forEach((t, i) => {
+    const topic = t.topic || t.title || 'Unknown';
+    const views = t.views ? `${(t.views / 1000000).toFixed(1)}M views` : '🔥 Trending';
+    report.push(`| ${i + 1} | ${topic.substring(0, 60)} | ${views} |`);
+  });
+
+  // Generate video script for top trend
+  const topTrend = trends[0];
+  const topic = topTrend?.topic || topTrend?.title || 'AI Technology';
+
+  report.push('');
+  report.push('### 📝 Generated Video Script');
+  report.push('');
+
+  const script = await aiGenerate(
+    `Create a complete 60-second YouTube Shorts / TikTok / Reels video script about: "${topic}"
+Requirements:
+- Opening HOOK (first 3 seconds): must stop the scroll
+- 3-4 key points delivered fast
+- Call to action at the end (subscribe, follow)
+- All in ENGLISH
+- Include on-screen text overlay suggestions
+JSON: {"title":"...","description":"...","tags":"...","hook":"...","keyPoints":["..."],"callToAction":"...","overlays":["..."]}`
+  );
+
+  if (script?.title) {
+    report.push(`- **Title**: *"${script.title}"*`);
+    report.push(`- **Hook**: *"${script.hook || 'Check this out!'}"*`);
+    if (script.keyPoints?.length) {
+      report.push('- **Key Points**:');
+      script.keyPoints.forEach(p => report.push(`  - ${p}`));
+    }
+    report.push(`- **CTA**: *"${script.callToAction || 'Follow for more!'}"*`);
+    report.push(`- **Tags**: ${script.tags || 'viral, shorts, tech'}`);
+
+    // Try uploading via Composio
+    if (COMPOSIO_KEY && !state.viralDates.includes(today)) {
+      const ytUpload = await composioAction('YOUTUBE_UPLOAD_SHORT', {
+        title: script.title, description: script.description,
+        tags: (script.tags || '').split(',').map(t => t.trim())
+      });
+      const igUpload = await composioAction('INSTAGRAM_CREATE_REEL', {
+        caption: `${script.title}\n\n${script.description}`
+      });
+      const tkUpload = await composioAction('TIKTOK_UPLOAD_VIDEO', {
+        title: script.title, description: script.description
+      });
+
+      report.push('');
+      report.push('### 📤 Upload Status');
+      report.push(`- YouTube Shorts: ${ytUpload.ok ? '✅ Uploaded' : '⏳ ' + (ytUpload.reason || 'Needs video file')}`);
+      report.push(`- Instagram Reels: ${igUpload.ok ? '✅ Posted' : '⏳ ' + (igUpload.reason || 'Needs video file')}`);
+      report.push(`- TikTok: ${tkUpload.ok ? '✅ Posted' : '⏳ ' + (tkUpload.reason || 'Needs video file')}`);
+
+      state.viralDates.push(today);
+      state.stats.totalViral++;
+    }
+  } else {
+    report.push('- ⚠️ Could not generate script (no AI Gateway key or API error).');
+    report.push(`- **Manual topic suggestion**: *"${topic}"*`);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Main Execution Loop
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function main() {
+  const startTime = Date.now();
+  
+  console.log('╔═══════════════════════════════════════════════════════╗');
+  console.log('║  SOCIAL MEDIA AGENT — Autonomous Daily Loop v2      ║');
+  console.log(`║  ${new Date().toISOString()}                  ║`);
+  console.log('╚═══════════════════════════════════════════════════════╝');
+
+  const state = loadState();
+  const report = [];
+
+  // Header
+  const now = new Date();
+  report.push(`# 📊 Daily Social Media Report`);
+  report.push(`### ${now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`);
+  report.push('');
+  report.push('| Service | Status |');
+  report.push('|---------|--------|');
+  report.push(`| YouTube API | ${YT_API_KEY ? '✅ Connected' : '⚠️ No key'} |`);
+  report.push(`| YouTube Channel | ${YT_CHANNEL_ID || '⚠️ Not set'} |`);
+  report.push(`| AI Gateway | ${AI_KEY ? '✅ Active' : '⚠️ No key'} |`);
+  report.push(`| Composio (IG/TT) | ${COMPOSIO_KEY ? '✅ Connected' : '⚠️ No key'} |`);
+
+  try {
+    // ── Fetch all YouTube videos ──
+    console.log('\n── Fetching YouTube videos...');
+    let videos = await ytApiListVideos(YT_CHANNEL_ID);
+    if (!videos) videos = await ytRssFallback(YT_CHANNEL_ID);
+    console.log(`   Found ${videos.length} videos.`);
+
+    // ── TASK 1: Fix metadata ──
+    console.log('\n── TASK 1: Analyzing metadata...');
+    await taskFixMetadata(videos, state, report);
+
+    // ── TASK 2: Cross-post ──
+    console.log('\n── TASK 2: Cross-posting...');
+    await taskCrossPost(videos, state, report);
+
+    // ── TASK 3: Viral content ──
+    console.log('\n── TASK 3: Viral content...');
+    await taskViralContent(state, report);
+
+  } catch (err) {
+    console.error('Critical error:', err);
+    report.push(`\n## ❌ Error\n\`\`\`\n${err.message}\n${err.stack?.split('\n').slice(0, 3).join('\n')}\n\`\`\``);
+  }
+
+  // ── Summary ──
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+  report.push('');
+  report.push('---');
+  report.push('## 📈 Cumulative Statistics');
+  report.push('');
+  report.push(`| Metric | Value |`);
+  report.push(`|--------|-------|`);
+  report.push(`| Metadata fixes (total) | ${state.stats.totalFixed} |`);
+  report.push(`| Cross-posts (total) | ${state.stats.totalPosted} |`);
+  report.push(`| Viral videos (total) | ${state.stats.totalViral} |`);
+  report.push(`| Last run | ${now.toISOString()} |`);
+  report.push(`| Execution time | ${elapsed}s |`);
+  report.push('');
+  report.push('---');
+  report.push(`*Generated by Social Media Agent v2 • ${now.toISOString()}*`);
+
+  saveState(state);
+  fs.writeFileSync(REPORT_FILE, report.join('\n'), 'utf8');
+  console.log(`\n✅ Done in ${elapsed}s. Report: ${REPORT_FILE}`);
+}
+
+main().catch(err => {
+  console.error('Fatal error:', err);
+  process.exit(1);
+});

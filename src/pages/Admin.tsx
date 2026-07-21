@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useCV } from "@/contexts/CVContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShop, Product } from "@/contexts/ShopContext";
+import { FileUploader } from "@/components/FileUploader";
 import gsap from "gsap";
 
 type Tab = "cv" | "social" | "products" | "messages" | "media" | "settings";
@@ -791,6 +792,18 @@ const MediaPanel = () => {
                   copy[i].fileUrl = e.target.value;
                   setCertificates(copy);
                 }} />
+                <div className="mt-2">
+                  <FileUploader 
+                    label="Upload Certificate PDF / Document" 
+                    allowedTypes="application/pdf,.doc,.docx"
+                    folder="certificates"
+                    onUploadSuccess={(url) => {
+                      const copy = [...certificates];
+                      copy[i].fileUrl = url;
+                      setCertificates(copy);
+                    }}
+                  />
+                </div>
               </div>
               <div className="md:col-span-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Credential Image URL</label>
@@ -799,6 +812,18 @@ const MediaPanel = () => {
                   copy[i].imgUrl = e.target.value;
                   setCertificates(copy);
                 }} />
+                <div className="mt-2">
+                  <FileUploader 
+                    label="Upload Credential Image" 
+                    allowedTypes="image/*"
+                    folder="certificates/images"
+                    onUploadSuccess={(url) => {
+                      const copy = [...certificates];
+                      copy[i].imgUrl = url;
+                      setCertificates(copy);
+                    }}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -812,18 +837,38 @@ const MediaPanel = () => {
           <button className="glass-btn-3d px-4 py-2 text-xs font-bold uppercase tracking-wider gap-1.5 flex items-center" onClick={() => setGallery([...gallery, { title: "", imgUrl: "" }])}><Plus size={13} className="text-amber-600" /> Add Image</button>
         </div>
         {gallery.map((img, i) => (
-          <div key={i} className="flex gap-4 items-center">
-            <input className={glassInputClass} placeholder="Image Title" value={img.title} onChange={e => {
-              const copy = [...gallery];
-              copy[i].title = e.target.value;
-              setGallery(copy);
-            }} />
-            <input className={glassInputClass} placeholder="Image URL (https://... or local)" value={img.imgUrl} onChange={e => {
-              const copy = [...gallery];
-              copy[i].imgUrl = e.target.value;
-              setGallery(copy);
-            }} />
-            <button className="p-2 text-red-500 hover:text-red-650 hover:bg-red-500/10 rounded-full transition-colors" onClick={() => setGallery(gallery.filter((_, idx) => idx !== i))}><Trash2 size={15} /></button>
+          <div key={i} className="p-4 rounded-2xl border border-white/50 bg-white/20 space-y-3 relative">
+            <button className="absolute right-4 top-4 p-2 text-red-500 hover:text-red-650 hover:bg-red-500/10 rounded-full transition-colors" onClick={() => setGallery(gallery.filter((_, idx) => idx !== i))}><Trash2 size={15} /></button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Image Title</label>
+                <input className={glassInputClass} placeholder="Image Title" value={img.title} onChange={e => {
+                  const copy = [...gallery];
+                  copy[i].title = e.target.value;
+                  setGallery(copy);
+                }} />
+              </div>
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Image URL / Upload</label>
+                <input className={glassInputClass} placeholder="Image URL (https://... or local)" value={img.imgUrl} onChange={e => {
+                  const copy = [...gallery];
+                  copy[i].imgUrl = e.target.value;
+                  setGallery(copy);
+                }} />
+                <div className="mt-2">
+                  <FileUploader 
+                    label="Upload Gallery Image" 
+                    allowedTypes="image/*"
+                    folder="gallery"
+                    onUploadSuccess={(url) => {
+                      const copy = [...gallery];
+                      copy[i].imgUrl = url;
+                      setGallery(copy);
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         ))}
       </div>
@@ -835,18 +880,38 @@ const MediaPanel = () => {
           <button className="glass-btn-3d px-4 py-2 text-xs font-bold uppercase tracking-wider gap-1.5 flex items-center" onClick={() => setVideos([...videos, { title: "", videoUrl: "" }])}><Plus size={13} className="text-amber-600" /> Add Video</button>
         </div>
         {videos.map((vid, i) => (
-          <div key={i} className="flex gap-4 items-center">
-            <input className={glassInputClass} placeholder="Video Title" value={vid.title} onChange={e => {
-              const copy = [...videos];
-              copy[i].title = e.target.value;
-              setVideos(copy);
-            }} />
-            <input className={glassInputClass} placeholder="Video URL (MP4, Youtube, etc.)" value={vid.videoUrl} onChange={e => {
-              const copy = [...videos];
-              copy[i].videoUrl = e.target.value;
-              setVideos(copy);
-            }} />
-            <button className="p-2 text-red-500 hover:text-red-650 hover:bg-red-500/10 rounded-full transition-colors" onClick={() => setVideos(videos.filter((_, idx) => idx !== i))}><Trash2 size={15} /></button>
+          <div key={i} className="p-4 rounded-2xl border border-white/50 bg-white/20 space-y-3 relative">
+            <button className="absolute right-4 top-4 p-2 text-red-500 hover:text-red-650 hover:bg-red-500/10 rounded-full transition-colors" onClick={() => setVideos(videos.filter((_, idx) => idx !== i))}><Trash2 size={15} /></button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Video Title</label>
+                <input className={glassInputClass} placeholder="Video Title" value={vid.title} onChange={e => {
+                  const copy = [...videos];
+                  copy[i].title = e.target.value;
+                  setVideos(copy);
+                }} />
+              </div>
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Video URL (YouTube/MP4) / Upload</label>
+                <input className={glassInputClass} placeholder="Video URL (MP4, Youtube, etc.)" value={vid.videoUrl} onChange={e => {
+                  const copy = [...videos];
+                  copy[i].videoUrl = e.target.value;
+                  setVideos(copy);
+                }} />
+                <div className="mt-2">
+                  <FileUploader 
+                    label="Upload Video File (MP4)" 
+                    allowedTypes="video/mp4"
+                    folder="videos"
+                    onUploadSuccess={(url) => {
+                      const copy = [...videos];
+                      copy[i].videoUrl = url;
+                      setVideos(copy);
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         ))}
       </div>
