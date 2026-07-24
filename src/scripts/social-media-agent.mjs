@@ -52,31 +52,40 @@ if (fs.existsSync(envFile)) {
 
 const YT_API_KEY      = process.env.YOUTUBE_API_KEY || '';
 const YT_CHANNEL_ID   = process.env.YOUTUBE_CHANNEL_ID || '';
-const AI_KEY          = process.env.AI_GATEWAY_API_KEY || '';
-const AI_MODEL        = process.env.AI_GATEWAY_MODEL || 'llama-3.3-70b-versatile';
 const COMPOSIO_KEY    = process.env.COMPOSIO_API_KEY || '';
 const MAX_PER_DAY     = 5;
 const MAX_DURATION    = 300; // 5 min in seconds
 
 // ─── AI Provider fallback chain ──────────────────────────────────────────────
-// We try multiple providers in order until one works.
+// Each provider uses its own API key. We try them in order until one works.
 const AI_PROVIDERS = [
   {
-    name: 'Gemini',
-    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
-    defaultModel: 'gemini-2.0-flash',
+    name: 'OpenAI',
+    baseUrl: 'https://api.openai.com/v1/chat/completions',
+    defaultModel: 'gpt-4o-mini',
+    apiKey: process.env.OPENAI_API_KEY || process.env.AI_GATEWAY_API_KEY || '',
   },
   {
     name: 'Groq',
     baseUrl: 'https://api.groq.com/openai/v1/chat/completions',
     defaultModel: 'llama-3.3-70b-versatile',
+    apiKey: process.env.GROQ_API_KEY || '',
+  },
+  {
+    name: 'DeepSeek',
+    baseUrl: 'https://api.deepseek.com/v1/chat/completions',
+    defaultModel: 'deepseek-chat',
+    apiKey: process.env.DEEPSEEK_API_KEY || '',
   },
   {
     name: 'OpenRouter',
     baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
     defaultModel: 'meta-llama/llama-3.3-70b-instruct:free',
+    apiKey: process.env.OPENROUTER_API_KEY || '',
   },
 ];
+
+const HAS_ANY_AI_KEY = AI_PROVIDERS.some(p => p.apiKey);
 
 // ─── HTTP Helpers ────────────────────────────────────────────────────────────
 function httpRequest(url, options = {}) {
@@ -268,13 +277,13 @@ async function composioAction(toolSlug, params) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function aiGenerate(prompt) {
-  if (!AI_KEY) {
-    console.warn('[AI] No AI_GATEWAY_API_KEY set. Skipping AI generation.');
+  if (!HAS_ANY_AI_KEY) {
+    console.warn('[AI] No API keys configured. Skipping AI generation.');
     return null;
   }
 
   for (const provider of AI_PROVIDERS) {
-    if (!provider.baseUrl) continue;
+    if (!provider.apiKey || !provider.baseUrl) continue;
     
     try {
       console.log(`[AI] Trying ${provider.name}...`);
@@ -286,7 +295,7 @@ async function aiGenerate(prompt) {
           temperature: 0.7,
           max_tokens: 1024,
         },
-        { 'Authorization': `Bearer ${AI_KEY}` }
+        { 'Authorization': `Bearer ${provider.apiKey}` }
       );
 
       if (res.status >= 200 && res.status < 300) {
@@ -298,7 +307,11 @@ async function aiGenerate(prompt) {
         console.log(`[AI] ✅ ${provider.name} responded successfully.`);
         // Try to extract JSON from the response
         const match = text.match(/[\[{][\s\S]*[\]}]/);
-        return match ? JSON.parse(match[0]) : text;
+        try {
+          return match ? JSON.parse(match[0]) : text;
+        } catch {
+          return text; // Return raw text if JSON parse fails
+        }
       } else {
         console.warn(`[AI] ${provider.name} returned status ${res.status}: ${
           typeof res.data === 'string' ? res.data.substring(0, 150) : JSON.stringify(res.data).substring(0, 150)
@@ -654,7 +667,7 @@ async function main() {
   report.push('|---------|--------|');
   report.push(`| YouTube API | ${YT_API_KEY ? '✅ Connected' : '⚠️ No key'} |`);
   report.push(`| YouTube Channel | ${YT_CHANNEL_ID || '⚠️ Not set'} |`);
-  report.push(`| AI Gateway | ${AI_KEY ? '✅ Active' : '⚠️ No key'} |`);
+  report.push(`| AI Providers | ${AI_PROVIDERS.filter(p => p.apiKey).map(p => p.name).join(', ') || '⚠️ No keys'} |`);
   report.push(`| Composio (IG/TT) | ${COMPOSIO_KEY ? '✅ Connected' : '⚠️ No key'} |`);
 
   try {
