@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAVOOD HUNTER AI — Daily Report</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a0f; color: #e0e0e0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .header { text-align: center; padding: 30px 0; border-bottom: 2px solid #f59e0b; margin-bottom: 30px; }
+        .header h1 { color: #f59e0b; font-size: 28px; margin-bottom: 5px; }
+        .header .subtitle { color: #888; font-size: 14px; }
+        .section { background: #12121a; border: 1px solid #1e1e2e; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+        .section h2 { color: #f59e0b; font-size: 18px; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid #2a2a3a; }
+        .section h3 { color: #60a5fa; font-size: 15px; margin: 15px 0 8px 0; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .stat-box { background: #1a1a25; border: 1px solid #2a2a3a; border-radius: 8px; padding: 15px; text-align: center; }
+        .stat-box .label { color: #888; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; }
+        .stat-box .value { color: #fff; font-size: 24px; font-weight: bold; }
+        .stat-box .value.green { color: #22c55e; }
+        .stat-box .value.red { color: #ef4444; }
+        .stat-box .value.yellow { color: #f59e0b; }
+        .signal { background: #1a1a25; border: 1px solid #2a2a3a; border-radius: 8px; padding: 15px; margin-bottom: 10px; }
+        .signal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .signal-header .symbol { color: #fff; font-size: 16px; font-weight: bold; }
+        .signal-header .score { background: #f59e0b; color: #000; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .signal-header .score.high { background: #22c55e; }
+        .signal-header .score.low { background: #ef4444; }
+        .signal-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 13px; }
+        .signal-detail .item { color: #aaa; }
+        .signal-detail .item span { color: #fff; }
+        .signal-status { margin-top: 10px; padding: 8px; border-radius: 4px; font-size: 12px; text-align: center; }
+        .signal-status.blocked { background: #3b1515; color: #ef4444; border: 1px solid #5a2020; }
+        .signal-status.executed { background: #153b15; color: #22c55e; border: 1px solid #205a20; }
+        .progress-bar { width: 100%; height: 8px; background: #1a1a25; border-radius: 4px; overflow: hidden; margin-top: 5px; }
+        .progress-bar .fill { height: 100%; background: linear-gradient(90deg, #f59e0b, #22c55e); border-radius: 4px; }
+        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .status-badge.active { background: #153b15; color: #22c55e; }
+        .status-badge.defensive { background: #3b3515; color: #f59e0b; }
+        .status-badge.monitoring { background: #15253b; color: #60a5fa; }
+        .status-badge.offline { background: #3b1515; color: #ef4444; }
+        .refresh-btn { background: #f59e0b; color: #000; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        .refresh-btn:hover { background: #d97706; }
+        .loading { text-align: center; padding: 50px; color: #888; }
+        .error { text-align: center; padding: 50px; color: #ef4444; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>DAVOOD HUNTER AI</h1>
+            <div class="subtitle">Daily Trading Report</div>
+            <div class="subtitle" id="dateDisplay">Loading...</div>
+            <button class="refresh-btn" onclick="loadReport()">Refresh Report</button>
+        </div>
+        <div id="content" class="loading">Loading report...</div>
+    </div>
+
+    <script>
+        async function loadReport() {
+            const content = document.getElementById('content');
+            content.innerHTML = '<div class="loading">Loading report...</div>';
+
+            try {
+                const res = await fetch('/report');
+                const data = await res.json();
+                renderReport(data);
+            } catch (e) {
+                content.innerHTML = '<div class="error">Failed to load report. Is the server running?</div>';
+            }
+        }
+
+        function renderReport(data) {
+            const s = data.stats || {};
+            const c = data.cumulative || {};
+            document.getElementById('dateDisplay').textContent = data.date || new Date().toISOString().split('T')[0];
+
+            let html = '';
+
+            // Executive Summary
+            html += '<div class="section"><h2>1. Executive Summary</h2>';
+            html += '<div class="grid">';
+            html += '<div class="stat-box"><div class="label">Signals Today</div><div class="value">' + (s.total_signals || 0) + '</div></div>';
+            html += '<div class="stat-box"><div class="label">Executed</div><div class="value green">' + (s.executed || 0) + '</div></div>';
+            html += '<div class="stat-box"><div class="label">Blocked</div><div class="value yellow">' + (s.blocked || 0) + '</div></div>';
+            html += '<div class="stat-box"><div class="label">LONG Signals</div><div class="value green">' + (s.long_signals || 0) + '</div></div>';
+            html += '<div class="stat-box"><div class="label">SHORT Signals</div><div class="value red">' + (s.short_signals || 0) + '</div></div>';
+            html += '<div class="stat-box"><div class="label">Avg Score</div><div class="value yellow">' + (s.avg_score || 0) + '/100</div></div>';
+            html += '</div></div>';
+
+            // Cumulative Stats
+            html += '<div class="section"><h2>2. Cumulative Performance</h2>';
+            html += '<div class="grid">';
+            html += '<div class="stat-box"><div class="label">Total Signals</div><div class="value">' + (c.total_signals || 0) + '</div></div>';
+            html += '<div class="stat-box"><div class="label">Executed</div><div class="value green">' + (c.executed || 0) + '</div></div>';
+            html += '<div class="stat-box"><div class="label">Blocked</div><div class="value red">' + (c.blocked || 0) + '</div></div>';
+            html += '</div></div>';
+
+            // Signals
+            html += '<div class="section"><h2>3. Today\'s Signals</h2>';
+            const decisions = data.decisions || [];
+            if (decisions.length === 0) {
+                html += '<p style="color:#888">No signals received today.</p>';
+            } else {
+                for (let i = 0; i < decisions.length; i++) {
+                    const d = decisions[i];
+                    const action = d.action || 'WAIT';
+                    const score = d.score || 0;
+                    const emoji = action === 'LONG' ? '🟢' : action === 'SHORT' ? '🔴' : '⏸';
+                    const scoreClass = score >= 90 ? 'high' : score >= 80 ? '' : 'low';
+
+                    html += '<div class="signal">';
+                    html += '<div class="signal-header">';
+                    html += '<span class="symbol">' + emoji + ' ' + (d.symbol || '?') + ' — ' + action + '</span>';
+                    html += '<span class="score ' + scoreClass + '">' + score + '/100</span>';
+                    html += '</div>';
+                    html += '<div class="signal-detail">';
+                    html += '<div class="item">Session: <span>' + (d.session || '?') + '</span></div>';
+                    html += '<div class="item">HTF Bias: <span>' + (d.htf_bias || '?') + '</span></div>';
+                    html += '<div class="item">Sweep: <span>' + (d.sweep_confirmed ? 'YES' : 'NO') + '</span></div>';
+                    html += '<div class="item">Displacement: <span>' + (d.displacement_confirmed ? 'YES' : 'NO') + '</span></div>';
+                    if (d.entry) html += '<div class="item">Entry: <span>' + d.entry + '</span></div>';
+                    if (d.sl) html += '<div class="item">SL: <span>' + d.sl + '</span></div>';
+                    if (d.tp) html += '<div class="item">TP: <span>' + d.tp + '</span></div>';
+                    if (d.rr_ratio) html += '<div class="item">R:R: <span>' + d.rr_ratio + '</span></div>';
+                    html += '</div>';
+                    const statusText = d.executed ? 'EXECUTED' : 'BLOCKED — ' + (d.skip_reason || d.reasoning || '');
+                    html += '<div class="signal-status ' + (d.executed ? 'executed' : 'blocked') + '">' + statusText + '</div>';
+                    html += '</div>';
+                }
+            }
+            html += '</div>';
+
+            // Risk Management
+            html += '<div class="section"><h2>4. Risk Management</h2>';
+            html += '<div class="grid">';
+            html += '<div class="stat-box"><div class="label">Risk Per Trade</div><div class="value">1%</div></div>';
+            html += '<div class="stat-box"><div class="label">Daily Limit</div><div class="value">3%</div></div>';
+            html += '<div class="stat-box"><div class="label">Kill Switch</div><div class="value green">ARMED</div></div>';
+            html += '</div></div>';
+
+            // Status
+            html += '<div class="section"><h2>5. Final Status</h2>';
+            const totalSignals = s.total_signals || 0;
+            const executed = s.executed || 0;
+            let statusClass = 'monitoring';
+            let statusText = 'MONITORING';
+            if (executed > 0) { statusClass = 'active'; statusText = 'ACTIVE'; }
+            else if (totalSignals > 0) { statusClass = 'defensive'; statusText = 'DEFENSIVE'; }
+            html += '<p><span class="status-badge ' + statusClass + '">' + statusText + '</span></p>';
+            html += '<p style="margin-top:10px;color:#888">Agent: DAVOOD HUNTER AI v1.0 | Mode: PAPER | Confidence: 95%</p>';
+            html += '</div>';
+
+            content.innerHTML = html;
+        }
+
+        loadReport();
+    </script>
+</body>
+</html>

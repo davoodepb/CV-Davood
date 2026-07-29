@@ -8,6 +8,7 @@
 
 import json
 import time
+import os
 from datetime import datetime, timezone, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
@@ -86,10 +87,24 @@ class TRHHandler(BaseHTTPRequestHandler):
             self._respond(200, summary)
 
         elif self.path == "/report":
-            from daily_report import get_daily_stats, format_report
-            stats = get_daily_stats()
-            report = format_report(stats)
-            self._respond(200, {"report": report, "stats": stats})
+            # Serve HTML report viewer
+            try:
+                html_path = os.path.join(os.path.dirname(__file__), "report_viewer.html")
+                with open(html_path, "r", encoding="utf-8") as f:
+                    html = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.send_header("Content-Length", len(html.encode()))
+                self.end_headers()
+                self.wfile.write(html.encode())
+            except Exception as e:
+                self._respond(500, {"error": str(e)})
+
+        elif self.path == "/api/report":
+            # JSON report for API consumers
+            from daily_report import format_report_json
+            report_data = format_report_json()
+            self._respond(200, report_data)
 
         else:
             self._respond(404, {"error": "Not found"})
