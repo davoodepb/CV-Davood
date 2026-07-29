@@ -1,0 +1,27 @@
+📊 DAVOOD HUNTER AI — DAILY REPORT
+📅 2026-07-29
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📡 Signals Received: 3
+  🟢 LONG:  3
+  🔴 SHORT: 0
+  ⏸ WAIT:   0
+
+✅ Executed: 0
+🚫 Blocked:  3
+📊 Avg Score: 96.7/100
+📐 Avg R:R: 3.78
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 ALL SIGNALS TODAY:
+
+  1. 🟢 LONG XAUUSD | Score: 97 | 20:57
+     → Outside kill zone (Hard Rule 1)
+  2. 🟢 LONG XAUUSD | Score: 98 | 21:42
+     → Outside kill zone (Hard Rule 1)
+  3. 🟢 LONG XAUUSD | Score: 95 | 21:47
+     → Outside kill zone (Hard Rule 1)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+🦁 DAVOOD HUNTER AI OS v1.0
+Paper Mode — No real trades

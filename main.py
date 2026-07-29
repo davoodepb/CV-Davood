@@ -85,6 +85,12 @@ class TRHHandler(BaseHTTPRequestHandler):
             summary["balance"] = balance
             self._respond(200, summary)
 
+        elif self.path == "/report":
+            from daily_report import get_daily_stats, format_report
+            stats = get_daily_stats()
+            report = format_report(stats)
+            self._respond(200, {"report": report, "stats": stats})
+
         else:
             self._respond(404, {"error": "Not found"})
 
