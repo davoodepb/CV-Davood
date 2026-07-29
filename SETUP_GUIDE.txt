@@ -1,0 +1,77 @@
+============================================================
+  DAVOOD HUNTER AI OS v1.0 — Quick Setup Guide
+  Trading Room Hunter (TRH)
+============================================================
+
+STEP 1 — COPY .env FILE
+  - Copy ".env.example" to ".env"
+  - Open .env and add your API keys:
+    OPENROUTER_API_KEY=your_key
+    or
+    CLAUDE_API_KEY=your_key
+    or
+    OPENAI_API_KEY=your_key
+
+STEP 2 — TEST AI BRAIN
+  - Double click START.bat
+  - Choose option 1
+  - Enter your API key when asked
+  - Choose scenario 6 (Premium Setup)
+  - AI should return LONG with score 90+
+
+STEP 3 — ADD PINE SCRIPT TO TRADINGVIEW
+  - Open TradingView
+  - Open Pine Script Editor (bottom)
+  - Paste contents of InstitutionalHunterAI.pine
+  - Click "Add to chart"
+  - Right click chart → Add Alert
+  - Condition: "TRH Hunter AI v3.0" → "Any alert"
+  - Webhook URL: http://YOUR_SERVER:8000/webhook
+  - Header: x-webhook-secret: trh_hunter_secret_change_this
+
+STEP 4 — START SERVER
+  - Double click START.bat
+  - Choose option 2
+  - Server runs on port 8000
+
+STEP 5 — EXPOSE TO INTERNET (for TradingView)
+  Option A: ngrok (free for testing)
+    - Download ngrok.com
+    - Run: ngrok http 8000
+    - Use the https URL in TradingView alerts
+
+  Option B: VPS (production)
+    - Upload all files to VPS
+    - Run: python main.py
+
+STEP 6 — PAPER MODE (MINIMUM 30 DAYS)
+  - Keep PAPER_MODE=true in .env
+  - Let the agent run for 30 days
+  - Review all decisions in trh_journal.db
+  - Only go live after consistent performance
+
+============================================================
+  FILES IN THIS PACKAGE:
+============================================================
+  DAVOOD_HUNTER_AI_OS_v1.py  — The complete AI brain (26 modules)
+  main.py                    — Web server (no install needed)
+  ai_brain.py                — AI API connector (multi-API)
+  config.py                  — Settings
+  execution.py               — Trade execution
+  risk_manager.py            — Hard rules enforcement
+  journal.py                 — Trade logging (SQLite)
+  telegram_alerts.py         — Phone notifications
+  test_ai_os.py              — AI brain tester
+  InstitutionalHunterAI.pine — TradingView indicator v3.0
+  START.bat                  — Windows launcher
+  .env.example               — API key template
+  SETUP_GUIDE.txt            — This file
+
+============================================================
+  KILL SWITCH (emergency):
+============================================================
+  POST http://localhost:8000/kill
+  Header: x-webhook-secret: trh_hunter_secret_change_this
+
+  Or restart Python and it resets automatically.
+============================================================

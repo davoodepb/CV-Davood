@@ -1,0 +1,4 @@
+# DAVOOD HUNTER AI OS v1.0 — Dependencies
+# No external packages needed — uses only Python stdlib
+# All API calls use urllib.request (no requests library)
+# Database uses sqlite3 (built-in)

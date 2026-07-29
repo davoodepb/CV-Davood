@@ -1,0 +1,191 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Premium Futuristic Light Luxury Theme - Warm White & Champagne Gold */
+    --background: 36 25% 97%; /* #FAF8F5 (Warm White) */
+    --foreground: 30 20% 15%; /* #26211A (Charcoal Bronze) */
+
+    --card: 36 60% 99%; /* #FFF8EE (Soft Ivory) */
+    --card-foreground: 30 20% 15%;
+
+    --popover: 36 60% 99%;
+    --popover-foreground: 30 20% 15%;
+
+    --primary: 45 65% 53%; /* #D4AF37 (Champagne Gold) */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 24 85% 50%; /* Amber/Coral */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 36 20% 90%;
+    --muted-foreground: 30 15% 45%;
+
+    --accent: 36 65% 48%; /* Warm Sand / Bronze */
+    --accent-foreground: 36 25% 97%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 36 30% 86%;
+    --input: 36 30% 86%;
+    --ring: 45 65% 53%;
+
+    --radius: 1rem;
+
+    --font-heading: 'Plus Jakarta Sans', sans-serif;
+    --font-body: 'Inter', sans-serif;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+  }
+}
+
+@layer components {
+  .europass-section {
+    @apply bg-card/60 backdrop-blur-md rounded-2xl p-6 md:p-8 border border-white/40 transition-all duration-500 hover:shadow-lg hover:border-primary/30 hover:-translate-y-0.5 shadow-sm;
+  }
+
+  .europass-heading {
+    @apply text-2xl font-bold text-foreground border-l-4 border-primary pl-4 mb-6;
+  }
+
+  .skill-bar-track {
+    @apply h-2 bg-muted rounded-full overflow-hidden;
+  }
+
+  .skill-bar-fill {
+    @apply h-full rounded-full transition-all duration-1000 ease-out;
+    background: linear-gradient(90deg, hsl(var(--primary)), #f59e0b);
+  }
+
+  .nav-active {
+    @apply text-primary font-semibold;
+    position: relative;
+  }
+
+  .nav-active::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: hsl(var(--primary));
+    border-radius: 1px;
+  }
+
+  .shop-card {
+    @apply bg-card rounded-xl shadow-sm border border-border overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+  }
+
+  .chat-bubble-user {
+    @apply bg-primary text-primary-foreground rounded-2xl rounded-br-md px-4 py-3 max-w-[75%] ml-auto;
+  }
+
+  .chat-bubble-admin {
+    @apply bg-secondary text-secondary-foreground rounded-2xl rounded-bl-md px-4 py-3 max-w-[75%];
+  }
+
+  .admin-sidebar-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer;
+  }
+
+  .admin-sidebar-active {
+    @apply bg-accent text-accent-foreground font-medium;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    background: linear-gradient(135deg, #d4af37, #f59e0b, #8b5a2b);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glass-card {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow: 0 8px 32px 0 rgba(139, 90, 43, 0.08);
+  }
+
+  .glass-btn-3d {
+    position: relative;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    color: #8b5a2b;
+    box-shadow: 
+      0 4px 12px rgba(139, 90, 43, 0.08), 
+      inset 0 1px 1px rgba(255, 255, 255, 0.9),
+      inset 0 -1px 2px rgba(139, 90, 43, 0.1);
+    font-weight: 700;
+    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .glass-btn-3d:hover {
+    background: rgba(255, 255, 255, 0.7);
+    border-color: rgba(212, 175, 55, 0.5);
+    box-shadow: 
+      0 0 25px rgba(212, 175, 55, 0.2),
+      0 8px 24px rgba(139, 90, 43, 0.12),
+      inset 0 1px 1px rgba(255, 255, 255, 0.9);
+    color: #d4af37;
+  }
+
+  .glass-btn-3d:active {
+    transform: translateY(1.5px) scale(0.98);
+    box-shadow: 
+      0 2px 4px rgba(139, 90, 43, 0.1),
+      inset 0 1px 1px rgba(139, 90, 43, 0.1);
+  }
+
+  .neon-glow-cyan {
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.25);
+  }
+  
+  .neon-glow-purple {
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.2);
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  body {
+    background: white !important;
+  }
+}
+
+/* Hide Lovable / GPT tagger badge */
+#lovable-badge,
+#gpt-tagger,
+[id*="lovable"],
+[class*="lovable"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
