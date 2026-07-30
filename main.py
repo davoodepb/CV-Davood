@@ -6,10 +6,11 @@
 # ============================================================
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
 import urllib.parse
+import time
 
 from config import WEBHOOK_PORT, WEBHOOK_SECRET, PAPER_MODE
 from ai_brain import ask_claude
@@ -21,6 +22,7 @@ from risk_manager import (
 from journal import init_db, log_decision
 from telegram_alerts import send_telegram_sync
 from telegram_bot import start_bot
+from daily_report import send_daily_report, init_daily_report_table
 
 broker = None
 
@@ -188,6 +190,34 @@ def process_webhook(alert_data: dict) -> dict:
     }
 
 
+def daily_report_scheduler():
+    """Send daily report every day at 22:00 Lisbon time (21:00 UTC in summer, 22:00 UTC in winter)"""
+    print("[REPORT] Daily report scheduler started")
+    reported_today = None
+
+    while True:
+        try:
+            now = datetime.now(timezone.utc)
+            lisbon = timezone(timedelta(hours=1))
+            now_lisbon = datetime.now(lisbon)
+            today = now_lisbon.strftime("%Y-%m-%d")
+
+            # Send report at 22:00 Lisbon time
+            if now_lisbon.hour == 22 and reported_today != today:
+                send_daily_report()
+                reported_today = today
+                print(f"[REPORT] Daily report sent for {today}")
+
+            # Reset daily tracker at midnight
+            if now_lisbon.hour == 0 and reported_today is not None:
+                reported_today = None
+
+            time.sleep(60)
+        except Exception as e:
+            print(f"[REPORT] Scheduler error: {e}")
+            time.sleep(60)
+
+
 def main():
     global broker
 
@@ -198,6 +228,7 @@ def main():
     print("╚══════════════════════════════════════════════════╝")
 
     init_db()
+    init_daily_report_table()
     broker = get_broker()
 
     # Check weekly size reduction
@@ -208,6 +239,11 @@ def main():
 
     # Start Telegram bot
     start_bot()
+
+    # Start daily report scheduler
+    report_thread = threading.Thread(target=daily_report_scheduler, daemon=True)
+    report_thread.start()
+    print("[REPORT] Daily report scheduled for 22:00 Lisbon time")
 
     server = HTTPServer(("0.0.0.0", WEBHOOK_PORT), TRHHandler)
     print(f"\n[SERVER] Running on port {WEBHOOK_PORT}")

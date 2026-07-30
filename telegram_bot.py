@@ -47,6 +47,7 @@ def handle_command(command, chat_id):
             "\n"
             "/status — Server & risk status\n"
             "/report — Today's full report\n"
+            "/daily — Daily activity report\n"
             "/signals — Recent signals\n"
             "/trades — Open trades\n"
             "/weekly — Weekly performance\n"
@@ -79,6 +80,11 @@ def handle_command(command, chat_id):
         send_message(status, chat_id)
 
     elif cmd == "/report":
+        from daily_report import format_full_report
+        report = format_full_report()
+        send_message(report, chat_id)
+
+    elif cmd == "/daily":
         from daily_report import format_full_report
         report = format_full_report()
         send_message(report, chat_id)
