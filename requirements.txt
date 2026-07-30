@@ -1,0 +1,14 @@
+# DAVOOD HUNTER AI OS v1.0 — Requirements
+# Pure Python only — minimum dependencies
+
+# Optional: for CCXT broker (crypto)
+# ccxt==4.3.0
+
+# Optional: for MT5 broker (Gold/Indices) — Windows only
+# MetaTrader5==5.0.45
+
+# Optional: for .env file loading
+python-dotenv==1.0.1
+
+# Optional: for database (PostgreSQL instead of SQLite)
+# psycopg2-binary==2.9.9
