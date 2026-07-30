@@ -70,7 +70,7 @@ INCOMING MARKET ALERT — Run full DAVOOD HUNTER AI OS analysis:
 
 Symbol: {alert_data.get('symbol', 'XAUUSD')}
 Event: {alert_data.get('event', 'unknown')}
-Price: {alert_data.get('price', 'N/A')}
+LIVE Price from TradingView: {alert_data.get('price', 'N/A')}
 Session: {alert_data.get('session', 'N/A')}
 HTF Bias: {alert_data.get('htf_bias', 'NEUTRAL')}
 Liquidity Level: {alert_data.get('liquidity_level', 'N/A')}
@@ -85,6 +85,14 @@ SMT Divergence: {alert_data.get('smt_divergence', False)}
 Volume Spike: {alert_data.get('volume_spike', False)}
 DXY Direction: {alert_data.get('dxy', 'N/A')}
 Notes: {alert_data.get('notes', 'none')}
+
+CRITICAL RULE — NEVER GENERATE PRICES:
+- The price above is the LIVE market price from TradingView.
+- You MUST use this exact price for Entry, SL, and TP calculations.
+- NEVER fabricate, estimate, or guess prices.
+- Entry must be near the live price (within ATR distance).
+- If the live price is not provided, respond with WAIT.
+- Entry, SL, TP must all be derived from the live price + liquidity levels.
 
 Run the complete Decision Engine (Module 17).
 Calculate Score (Module 18).

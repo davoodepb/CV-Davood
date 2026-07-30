@@ -141,6 +141,22 @@ def process_webhook(alert_data: dict) -> dict:
     if is_killed():
         return {"status": "blocked", "reason": "Kill switch active"}
 
+    # VALIDATE: Price must come from TradingView, never fabricated
+    price = alert_data.get("price")
+    symbol = alert_data.get("symbol", "")
+    if not price or price == 0:
+        return {"status": "blocked", "reason": "No live price in alert data"}
+    if price < 0:
+        return {"status": "blocked", "reason": "Invalid price"}
+
+    # Price sanity check — reject if too far from expected range
+    if "XAU" in symbol.upper():
+        if price < 1500 or price > 5000:
+            return {"status": "blocked", "reason": f"XAUUSD price {price} outside valid range"}
+    elif "NAS" in symbol.upper() or "US100" in symbol.upper():
+        if price < 5000 or price > 50000:
+            return {"status": "blocked", "reason": f"NAS100 price {price} outside valid range"}
+
     decision = ask_claude(alert_data)
 
     try:
