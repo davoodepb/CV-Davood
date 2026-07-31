@@ -110,10 +110,10 @@ def format_full_report():
     win_rate = (len(wins) / len(trades) * 100) if trades else 0
 
     report = (
-        f"DAVOOD HUNTER AI — DAILY REPORT\n"
+        f"DAVOOD HUNTER AI - DAILY REPORT\n"
         f"Date: {today}\n"
         f"Time: {now_lisbon.strftime('%H:%M')} Lisbon\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"----------------------------------------\n"
     )
 
     # Kill status
@@ -178,10 +178,10 @@ def format_full_report():
 
     # Summary
     report += (
-        f"\n━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"\n----------------------------------------\n"
         f"STATUS: {'HUNTING' if not stats['killed'] else 'HALTED'}\n"
         f"Mode: PAPER\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━"
+        f"----------------------------------------"
     )
 
     return report
@@ -193,13 +193,13 @@ def format_weekly_summary():
 
     msg = (
         f"WEEKLY SUMMARY\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"----------------------------------------\n"
         f"Week: {report['week_start']}\n"
         f"Trades: {report['total_trades']}\n"
         f"Wins: {report['wins']} | Losses: {report['losses']}\n"
         f"Win Rate: {report['win_rate']:.0f}%\n"
         f"P/L: {report['pnl_usd']:+.2f} USD ({report['pnl_r']:+.1f}R)\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━"
+        f"----------------------------------------"
     )
     return msg
 
