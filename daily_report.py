@@ -206,9 +206,9 @@ def format_weekly_summary():
 
 def send_daily_report():
     try:
-        from telegram_alerts import send_message
+        from telegram_alerts import send_telegram_sync
         report = format_full_report()
-        send_message(report)
+        send_telegram_sync(report)
         print(f"[REPORT] Daily report sent at {datetime.now(timezone.utc).isoformat()}")
         return True
     except Exception as e:
