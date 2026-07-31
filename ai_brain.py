@@ -7,7 +7,10 @@
 import urllib.request
 import json
 import os
+from dotenv import load_dotenv
 from DAVOOD_HUNTER_AI_OS_v1 import DAVOOD_HUNTER_AI_OS
+
+load_dotenv()
 
 # ─── API CONFIGURATION ───────────────────────────────────────
 # Priority: NVIDIA → OpenRouter → Claude → OpenAI → DeepSeek → Groq
@@ -210,14 +213,14 @@ def ask_claude(alert_data: dict) -> dict:
                     decision[k] = [] if k in ["reject_reasons","soft_rules_present"] else None
 
             score = decision.get("score") or 0
-            print(f"[AI] ✅ {api['name']} → {decision.get('action')} | Score: {score}/100")
+            print(f"[AI] OK {api['name']} -> {decision.get('action')} | Score: {score}/100")
             return decision
 
         except Exception as e:
-            print(f"[AI] ❌ {api['name']} failed: {e}")
+            print(f"[AI] FAIL {api['name']}: {e}")
             continue
 
-    print("[AI] ⚠️ All APIs failed — returning WAIT")
+    print("[AI] All APIs failed - returning WAIT")
     return _wait("All APIs unavailable")
 
 
