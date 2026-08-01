@@ -11,6 +11,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
 import urllib.parse
 import time
+import os
 
 from config import WEBHOOK_PORT, WEBHOOK_SECRET, PAPER_MODE
 from ai_brain import ask_claude
@@ -200,6 +201,111 @@ def process_webhook(alert_data: dict) -> dict:
     }
 
 
+def keep_alive_scheduler():
+    """Ping self every 14 minutes to prevent Render.com free tier from sleeping"""
+    print("[KEEPALIVE] Keep-alive scheduler started")
+    port = int(os.getenv("PORT", "8000"))
+
+    while True:
+        try:
+            time.sleep(14 * 60)  # 14 minutes
+            import urllib.request
+            url = f"http://localhost:{port}/health"
+            try:
+                req = urllib.request.Request(url)
+                with urllib.request.urlopen(req, timeout=10):
+                    print(f"[KEEPALIVE] Ping successful at {datetime.now(timezone.utc).isoformat()}")
+            except Exception as e:
+                print(f"[KEEPALIVE] Ping failed: {e}")
+        except Exception as e:
+            print(f"[KEEPALIVE] Scheduler error: {e}")
+            time.sleep(60)
+
+
+def proactive_scanner():
+    """Proactively scan charts every 5 minutes and analyze for setup opportunities"""
+    print("[SCANNER] Proactive chart scanner started")
+    from risk_manager import in_killzone, is_killed
+    from ai_brain import ask_claude
+    from config import KILLZONES_LISBON
+
+    SCAN_INTERVAL = 300  # 5 minutes
+    SCAN_SYMBOLS = ["XAUUSD", "NAS100", "EURUSD", "GBPUSD"]
+
+    while True:
+        try:
+            time.sleep(SCAN_INTERVAL)
+
+            if is_killed():
+                continue
+
+            in_kz, kz_name = in_killzone()
+
+            if not in_kz:
+                continue
+
+            print(f"[SCANNER] Active killzone: {kz_name}. Scanning {len(SCAN_SYMBOLS)} symbols...")
+
+            for symbol in SCAN_SYMBOLS:
+                try:
+                    scan_data = {
+                        "symbol": symbol,
+                        "event": "proactive_scan",
+                        "price": 0,
+                        "timeframe": "5m",
+                        "htf_trend": "pending",
+                        "structure": "pending",
+                        "fvg": "pending",
+                        "session": kz_name,
+                        "message": f"Proactive scan by DAVOOD HUNTER AI. Current session: {kz_name}. Looking for TRH Hunter Method setup. Check for: 1) Liquidity sweep, 2) Displacement candle, 3) FVG, 4) BOS confirmation, 5) SMT divergence. Only alert if HIGH probability setup found."
+                    }
+
+                    decision = ask_claude(scan_data)
+
+                    if decision.get("action") in ["LONG", "SHORT"] and decision.get("score", 0) >= 80:
+                        from telegram_alerts import send_telegram_sync
+                        from risk_manager import approve_trade
+                        from journal import log_decision
+
+                        try:
+                            balance = 10000.0
+                        except:
+                            balance = 10000.0
+
+                        approved, reason = approve_trade(decision, balance)
+
+                        if approved:
+                            alert_msg = (
+                                f"ALARM: TRADE OPPORTUNITY DETECTED\n"
+                                f"----------------------------------------\n"
+                                f"Symbol: {symbol}\n"
+                                f"Direction: {decision['action']}\n"
+                                f"Score: {decision.get('score', 0)}/100\n"
+                                f"Confidence: {decision.get('confidence', 0)}%\n"
+                                f"Entry: {decision.get('entry', 'N/A')}\n"
+                                f"SL: {decision.get('sl', 'N/A')}\n"
+                                f"TP: {decision.get('tp', 'N/A')}\n"
+                                f"R:R: {decision.get('rr_ratio', 'N/A')}\n"
+                                f"Session: {kz_name}\n"
+                                f"----------------------------------------\n"
+                                f"{decision.get('reasoning', '')[:200]}"
+                            )
+                            send_telegram_sync(alert_msg)
+                            log_decision(scan_data, decision, executed=True, skip_reason="Proactive scan")
+                            print(f"[SCANNER] TRADE ALERT sent for {symbol} {decision['action']}")
+                        else:
+                            print(f"[SCANNER] {symbol} {decision['action']} blocked: {reason}")
+                    else:
+                        print(f"[SCANNER] {symbol}: No setup (score={decision.get('score', 0)})")
+
+                except Exception as e:
+                    print(f"[SCANNER] Error scanning {symbol}: {e}")
+
+        except Exception as e:
+            print(f"[SCANNER] Scanner error: {e}")
+            time.sleep(60)
+
+
 def daily_report_scheduler():
     """Send daily report every day at 22:00 Lisbon time (21:00 UTC in summer, 22:00 UTC in winter)"""
     print("[REPORT] Daily report scheduler started")
@@ -258,6 +364,16 @@ def main():
     # Start session manager (narrates everything during London/NY)
     session_manager.start()
     print("[SESSION] Session manager started - will narrate all sessions")
+
+    # Start keep-alive scheduler (prevents Render.com free tier from sleeping)
+    keepalive_thread = threading.Thread(target=keep_alive_scheduler, daemon=True)
+    keepalive_thread.start()
+    print("[KEEPALIVE] Keep-alive scheduler started - will ping every 14 minutes")
+
+    # Start proactive chart scanner (analyzes charts every 5 minutes)
+    scanner_thread = threading.Thread(target=proactive_scanner, daemon=True)
+    scanner_thread.start()
+    print("[SCANNER] Proactive chart scanner started - will scan every 5 minutes")
 
     server = HTTPServer(("0.0.0.0", WEBHOOK_PORT), TRHHandler)
     print(f"\n[SERVER] Running on port {WEBHOOK_PORT}")
