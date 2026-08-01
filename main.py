@@ -23,6 +23,7 @@ from journal import init_db, log_decision
 from telegram_alerts import send_telegram_sync
 from telegram_bot import start_bot
 from daily_report import send_daily_report, init_daily_report_table
+from session_manager import session_manager
 
 broker = None
 
@@ -170,6 +171,15 @@ def process_webhook(alert_data: dict) -> dict:
 
     decision_id = log_decision(alert_data, decision, executed=approved, skip_reason=reason)
 
+    # Log to session manager
+    from risk_manager import in_killzone
+    in_kz, kz_name = in_killzone()
+    session = "london" if "London" in kz_name else "ny" if "NewYork" in kz_name else None
+    if session:
+        is_match = decision.get("action") in ["LONG", "SHORT"] and decision.get("score", 0) >= 80
+        is_trade = approved and is_match
+        session_manager.log_signal(session, is_match=is_match, is_trade=is_trade)
+
     msg = format_decision_report(decision, alert_data, approved, reason)
     threading.Thread(target=send_telegram_sync, args=(msg,), daemon=True).start()
 
@@ -244,6 +254,10 @@ def main():
     report_thread = threading.Thread(target=daily_report_scheduler, daemon=True)
     report_thread.start()
     print("[REPORT] Daily report scheduled for 22:00 Lisbon time")
+
+    # Start session manager (narrates everything during London/NY)
+    session_manager.start()
+    print("[SESSION] Session manager started - will narrate all sessions")
 
     server = HTTPServer(("0.0.0.0", WEBHOOK_PORT), TRHHandler)
     print(f"\n[SERVER] Running on port {WEBHOOK_PORT}")

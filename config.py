@@ -37,11 +37,11 @@ REVENGE_PAUSE_MINUTES  = 30     # mandatory pause after stop loss
 
 # ─── KILLZONES (Lisbon time, auto-converts to UTC) ────────────
 # These are LISBON times — the system auto-converts to UTC
-# London: 08:00-11:00 Lisbon
-# NY: 13:00-16:00 Lisbon
+# London: 11:00-13:00 Lisbon
+# NY: 16:00-18:00 Lisbon
 KILLZONES_LISBON = {
-    "London":  (8, 11),
-    "NewYork": (13, 16),
+    "London":  (11, 13),
+    "NewYork": (16, 18),
 }
 
 # Auto-convert to UTC based on current DST
