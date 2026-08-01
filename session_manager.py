@@ -417,6 +417,7 @@ class SessionManager:
                     self.reset_daily()
                     current_day = today
                     print(f"[SESSION] New day: {today}")
+                    send_daily_plan()
 
                 state = get_session_state()
 
