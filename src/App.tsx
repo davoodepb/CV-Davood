@@ -15,6 +15,7 @@ import Chat from "./pages/Chat";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import { HeroScrollDemo } from "./pages/ScrollDemo";
+import PremiumLanding from "./pages/PremiumLanding";
 import Navbar from "@/components/Navbar";
 import InstallApp from "@/components/InstallApp";
 
@@ -66,7 +67,8 @@ const AppContent = () => {
       <div className="relative z-10 flex flex-col min-h-screen">
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
+            <Route path="/" element={<PremiumLanding />} />
+            <Route path="/classic" element={<Index />} />
             <Route path="/shop" element={<Shop />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/showcase" element={<HeroScrollDemo />} />
