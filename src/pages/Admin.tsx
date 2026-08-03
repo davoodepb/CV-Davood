@@ -100,11 +100,13 @@ const Admin = () => {
       <div className="relative z-20 pt-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         {!user && !hardcodedAdmin ? (
           <div className="max-w-md mx-auto py-16 animate-fade-in">
-            <div className="glass-card rounded-2xl border border-white/50 p-8 space-y-6 hover:shadow-amber-500/5 transition-all duration-500">
+            <div className="glass-card rounded-3xl border border-white/50 p-10 space-y-6 hover:shadow-amber-500/5 transition-all duration-500">
               <div className="text-center">
-                <LogIn size={40} className="mx-auto text-amber-500 mb-4" />
-                <h1 className="text-3xl font-heading font-black text-stone-900">Admin Login</h1>
-                <p className="text-sm text-stone-600 mt-2">Sign in to manage your CV and content</p>
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#003399] to-[#1a6bff] flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20">
+                  <LogIn size={28} className="text-white" />
+                </div>
+                <h1 className="text-3xl font-heading font-black text-stone-900">Admin Panel</h1>
+                <p className="text-sm text-stone-600 mt-2">Sign in to manage your portfolio</p>
               </div>
               <div className="space-y-4">
                 <div>
@@ -147,11 +149,31 @@ const Admin = () => {
           </div>
         ) : (
           <div className="animate-fade-in">
+            {/* Dashboard Header */}
             <div className="flex items-center justify-between mb-8">
-              <h1 className="text-3xl md:text-4xl font-heading font-black text-gradient tracking-tight">Admin Panel</h1>
+              <div>
+                <h1 className="text-3xl md:text-4xl font-heading font-black text-gradient tracking-tight">Dashboard</h1>
+                <p className="text-xs text-stone-500 mt-1 uppercase font-bold tracking-widest">Manage your portfolio</p>
+              </div>
               <button className="glass-btn-3d px-5 py-2.5 text-xs font-bold uppercase tracking-wider gap-2 flex items-center shadow-md" onClick={() => { setHardcodedAdmin(false); logout(); toast.success("Logged out"); }}>
                 <LogOut size={14} className="text-amber-600" /> Logout
               </button>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              {[
+                { label: "Skills", value: cv.technicalSkills.length + cv.creativeSkills.length, icon: "🎯" },
+                { label: "Languages", value: cv.languages.length, icon: "🌐" },
+                { label: "Experience", value: cv.experience.length, icon: "💼" },
+                { label: "Education", value: cv.education.length, icon: "🎓" },
+              ].map((stat) => (
+                <div key={stat.label} className="glass-card rounded-2xl border border-white/50 p-5 text-center hover:shadow-amber-500/10 transition-all duration-300 hover:-translate-y-1">
+                  <span className="text-2xl mb-2 block">{stat.icon}</span>
+                  <p className="text-2xl font-black text-stone-900">{stat.value}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500 mt-1">{stat.label}</p>
+                </div>
+              ))}
             </div>
 
             <div className="flex flex-col md:flex-row gap-8">
@@ -242,7 +264,11 @@ const CVPanel = () => {
     setEducation(copy);
   };
   const addEducation = () => setEducation([...education, { period: "", degree: "", school: "", details: [] }]);
-  const removeEducation = (i: number) => setEducation(education.filter((_, idx) => idx !== i));
+  const removeEducation = (i: number) => {
+    if (window.confirm("Remove this education entry?")) {
+      setEducation(education.filter((_, idx) => idx !== i));
+    }
+  };
 
   const updateExp = (i: number, field: string, val: string) => {
     const copy = [...experience];
@@ -250,7 +276,11 @@ const CVPanel = () => {
     setExperience(copy);
   };
   const addExperience = () => setExperience([...experience, { year: "", title: "", desc: "" }]);
-  const removeExperience = (i: number) => setExperience(experience.filter((_, idx) => idx !== i));
+  const removeExperience = (i: number) => {
+    if (window.confirm("Remove this experience entry?")) {
+      setExperience(experience.filter((_, idx) => idx !== i));
+    }
+  };
 
   const updateSkill = (arr: { name: string; pct: number }[], setter: Function, i: number, field: string, val: string | number) => {
     const copy = [...arr];
@@ -258,7 +288,11 @@ const CVPanel = () => {
     setter(copy);
   };
   const addSkill = (arr: { name: string; pct: number }[], setter: Function) => setter([...arr, { name: "", pct: 50 }]);
-  const removeSkill = (arr: { name: string; pct: number }[], setter: Function, i: number) => setter(arr.filter((_, idx) => idx !== i));
+  const removeSkill = (arr: { name: string; pct: number }[], setter: Function, i: number) => {
+    if (window.confirm("Remove this skill?")) {
+      setter(arr.filter((_, idx) => idx !== i));
+    }
+  };
 
   const updateLang = (i: number, field: string, val: string | number) => {
     const copy = [...languages];
@@ -266,7 +300,11 @@ const CVPanel = () => {
     setLanguages(copy);
   };
   const addLanguage = () => setLanguages([...languages, { name: "", pct: 50, level: "" }]);
-  const removeLanguage = (i: number) => setLanguages(languages.filter((_, idx) => idx !== i));
+  const removeLanguage = (i: number) => {
+    if (window.confirm("Remove this language?")) {
+      setLanguages(languages.filter((_, idx) => idx !== i));
+    }
+  };
 
   const glassInputClass = "w-full bg-white/40 border border-white/60 rounded-full px-5 py-3 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 placeholder:text-stone-400 text-stone-800 transition-all duration-300";
   const glassTextareaClass = "w-full bg-white/40 border border-white/60 rounded-2xl p-5 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 placeholder:text-stone-400 text-stone-800 transition-all duration-300";

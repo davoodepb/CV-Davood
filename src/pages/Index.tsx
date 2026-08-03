@@ -349,25 +349,29 @@ const Index = () => {
                 <div 
                   className="relative w-44 h-44 md:w-56 md:h-56 flex-shrink-0 flex items-center justify-center cursor-pointer select-none"
                   onClick={handleProfileTap}
+                  style={{ animation: 'float 4s ease-in-out infinite' }}
                 >
-                  {/* Spinning stars around profile */}
-                  <div className="absolute inset-0 animate-spin" style={{ animationDuration: '24s' }}>
+                  {/* Blue gradient glow ring */}
+                  <div className="absolute inset-[-8px] rounded-full bg-gradient-to-br from-[#003399] via-[#0055cc] to-[#003399] opacity-20 blur-xl" />
+                  <div className="absolute inset-[-4px] rounded-full bg-gradient-to-br from-[#003399] via-[#1a6bff] to-[#003399] shadow-[0_0_40px_rgba(0,51,153,0.4)]" />
+                  {/* Spinning stars - move together with profile */}
+                  <div className="absolute inset-0 animate-spin" style={{ animationDuration: '20s' }}>
                     {Array.from({ length: 12 }).map((_, i) => {
                       const angle = (i * 30) * (Math.PI / 180);
                       const radius = 48;
                       const x = 50 + radius * Math.cos(angle);
                       const y = 50 + radius * Math.sin(angle);
                       return (
-                        <span key={i} className="absolute text-amber-500 text-[11px] drop-shadow-[0_0_8px_rgba(212,175,55,0.8)]"
+                        <span key={i} className="absolute text-amber-400 text-[10px] drop-shadow-[0_0_6px_rgba(212,175,55,0.9)]"
                           style={{ left: `${x}%`, top: `${y}%`, transform: 'translate(-50%, -50%)' }}>
                           ★
                         </span>
                       );
                     })}
                   </div>
-                  {/* Floating profile with blue border */}
-                  <div className="w-36 h-36 md:w-48 md:h-48 rounded-full overflow-hidden border-[5px] border-[#003399] shadow-[0_0_30px_rgba(0,51,153,0.35)] z-10 hover:scale-105 transition-transform duration-500" style={{ animation: 'float 4s ease-in-out infinite' }}>
-                    <img src={profileImg} alt={cv.name} className="w-full h-full object-cover" />
+                  {/* Profile image with blue gradient border */}
+                  <div className="w-36 h-36 md:w-48 md:h-48 rounded-full overflow-hidden z-10 hover:scale-105 transition-transform duration-500" style={{ background: 'linear-gradient(135deg, #003399, #1a6bff, #003399)', padding: '4px' }}>
+                    <img src={profileImg} alt={cv.name} className="w-full h-full object-cover rounded-full" />
                   </div>
                 </div>
                 <div className="text-center md:text-left flex-1">
