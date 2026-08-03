@@ -5,20 +5,24 @@ interface EUFlagProps {
 }
 
 export const EUFlag = ({ className = "w-9 h-9" }: EUFlagProps) => {
-  const starPositions = [
-    { cx: 30, cy: 10 },
-    { cx: 45, cy: 13 },
-    { cx: 55, cy: 22 },
-    { cx: 58, cy: 37 },
-    { cx: 52, cy: 50 },
-    { cx: 42, cy: 56 },
-    { cx: 30, cy: 56 },
-    { cx: 18, cy: 50 },
-    { cx: 12, cy: 37 },
-    { cx: 15, cy: 22 },
-    { cx: 25, cy: 13 },
-    { cx: 35, cy: 55 },
-  ];
+  const stars = Array.from({ length: 12 }, (_, i) => {
+    const angle = (i * 30 - 90) * (Math.PI / 180);
+    const radius = 18;
+    const cx = 30 + radius * Math.cos(angle);
+    const cy = 30 + radius * Math.sin(angle);
+    return { cx, cy, angle: i * 30 - 90 };
+  });
+
+  const createStar = (cx: number, cy: number, size: number) => {
+    const points: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      const outerAngle = (i * 72 - 90) * (Math.PI / 180);
+      const innerAngle = ((i * 72 + 36) - 90) * (Math.PI / 180);
+      points.push(`${cx + size * Math.cos(outerAngle)},${cy + size * Math.sin(outerAngle)}`);
+      points.push(`${cx + size * 0.38 * Math.cos(innerAngle)},${cy + size * 0.38 * Math.sin(innerAngle)}`);
+    }
+    return points.join(" ");
+  };
 
   return (
     <svg
@@ -26,20 +30,13 @@ export const EUFlag = ({ className = "w-9 h-9" }: EUFlagProps) => {
       className={className}
       xmlns="http://www.w3.org/2000/svg"
     >
-      <rect width="60" height="60" fill="#003399" rx="3" />
-      {starPositions.map((pos, i) => (
-        <text
+      <rect width="60" height="60" fill="#003399" rx="2" />
+      {stars.map((star, i) => (
+        <polygon
           key={i}
-          x={pos.cx}
-          y={pos.cy}
-          textAnchor="middle"
-          dominantBaseline="central"
+          points={createStar(star.cx, star.cy, 5.5)}
           fill="#FFCC00"
-          fontSize="9"
-          fontFamily="serif"
-        >
-          ★
-        </text>
+        />
       ))}
     </svg>
   );

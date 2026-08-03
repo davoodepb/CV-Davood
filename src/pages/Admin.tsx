@@ -20,17 +20,29 @@ const tabs: { key: Tab; label: string; icon: React.ElementType }[] = [
   { key: "settings", label: "Settings", icon: Settings },
 ];
 
+const ADMIN_EMAIL = "davood123@gmail.com";
+const ADMIN_PASS = "davood123";
+
 const Admin = () => {
   const { user, loading, isAdmin, login, loginWithGoogle, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("cv");
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPass, setLoginPass] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
+  const [hardcodedAdmin, setHardcodedAdmin] = useState(false);
   const cursorGlowRef = useRef<HTMLDivElement>(null);
 
   const handleLogin = async () => {
     setLoginLoading(true);
     try {
+      // Check hardcoded admin first
+      if (loginEmail === ADMIN_EMAIL && loginPass === ADMIN_PASS) {
+        setHardcodedAdmin(true);
+        toast.success("Logged in as admin!");
+        setLoginLoading(false);
+        return;
+      }
+      // Otherwise try Firebase Auth
       await login(loginEmail, loginPass);
       toast.success("Logged in successfully!");
     } catch (e: any) {
@@ -86,7 +98,7 @@ const Admin = () => {
       />
 
       <div className="relative z-20 pt-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
-        {!user || !isAdmin ? (
+        {!user && !hardcodedAdmin ? (
           <div className="max-w-md mx-auto py-16 animate-fade-in">
             <div className="glass-card rounded-2xl border border-white/50 p-8 space-y-6 hover:shadow-amber-500/5 transition-all duration-500">
               <div className="text-center">
@@ -137,7 +149,7 @@ const Admin = () => {
           <div className="animate-fade-in">
             <div className="flex items-center justify-between mb-8">
               <h1 className="text-3xl md:text-4xl font-heading font-black text-gradient tracking-tight">Admin Panel</h1>
-              <button className="glass-btn-3d px-5 py-2.5 text-xs font-bold uppercase tracking-wider gap-2 flex items-center shadow-md" onClick={() => { logout(); toast.success("Logged out"); }}>
+              <button className="glass-btn-3d px-5 py-2.5 text-xs font-bold uppercase tracking-wider gap-2 flex items-center shadow-md" onClick={() => { setHardcodedAdmin(false); logout(); toast.success("Logged out"); }}>
                 <LogOut size={14} className="text-amber-600" /> Logout
               </button>
             </div>

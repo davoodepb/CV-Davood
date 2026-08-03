@@ -55,10 +55,14 @@ export const FileUploader = ({
       const matchesType = allowed.some(t => {
         if (t.startsWith(".")) return fileExt === t.toLowerCase();
         if (t.endsWith("/*")) return file.type.startsWith(t.replace("/*", "/"));
+        // Handle PDF specifically - some browsers report different MIME types
+        if (t === "application/pdf" && fileExt === ".pdf") return true;
+        // Handle doc/docx
+        if (t === "application/pdf" && (fileExt === ".doc" || fileExt === ".docx")) return true;
         return file.type === t;
       });
       if (!matchesType) {
-        return `Unsupported file type. Allowed: ${allowedTypes}`;
+        return `Unsupported file type (${fileExt}). Allowed: ${allowedTypes}`;
       }
     }
 
@@ -67,7 +71,7 @@ export const FileUploader = ({
       ? maxSizeMB * 1024 * 1024
       : FILE_SIZE_LIMITS[allowedTypes] || FILE_SIZE_LIMITS["*"];
     if (file.size > limit) {
-      return `File too large. Maximum size: ${formatFileSize(limit)}`;
+      return `File too large (${formatFileSize(file.size)}). Maximum: ${formatFileSize(limit)}`;
     }
 
     return null;
@@ -114,16 +118,21 @@ export const FileUploader = ({
 
         // Parse Firebase Storage errors
         let message = "Upload failed. Please try again.";
-        if (error.code === "storage/unauthorized") {
-          message = "Permission denied. Check Firebase Storage rules.";
-        } else if (error.code === "storage/canceled") {
+        const code = error.code || "";
+        if (code.includes("unauthorized") || code.includes("permission-denied")) {
+          message = "Permission denied. Check Firebase Storage rules (need auth:read, auth:write).";
+        } else if (code.includes("canceled")) {
           message = "Upload was canceled.";
-        } else if (error.code === "storage/quota-exceeded") {
-          message = "Storage quota exceeded. Free up space first.";
-        } else if (error.code === "storage/invalid-argument") {
-          message = "Invalid file. Try a different file.";
-        } else if (error.serverResponse) {
-          message = `Server error (${error.serverResponse}). Check network and try again.`;
+        } else if (code.includes("quota-exceeded")) {
+          message = "Storage quota exceeded. Upgrade Firebase plan.";
+        } else if (code.includes("invalid-argument") || code.includes("invalid-format")) {
+          message = "Invalid file format. Try a different file.";
+        } else if (code.includes("not-found")) {
+          message = "Storage path not found. Check Firebase config.";
+        } else if (code.includes("network")) {
+          message = "Network error. Check your connection.";
+        } else if (error.message) {
+          message = `Upload error: ${error.message}`;
         }
 
         setErrorMsg(message);
