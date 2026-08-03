@@ -70,8 +70,8 @@ const AppContent = () => {
             <Route path="/shop" element={<Shop />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/showcase" element={<HeroScrollDemo />} />
-            <Route path="/dashboard-interno" element={<SecretAdminRoute />} />
-            <Route path="/admin" element={<NotFound />} />
+            <Route path="/admin" element={<Admin />} />
+            <Route path="/dashboard-interno" element={<Admin />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
