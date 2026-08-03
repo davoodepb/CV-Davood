@@ -350,6 +350,7 @@ const Index = () => {
                   className="relative w-44 h-44 md:w-56 md:h-56 flex-shrink-0 flex items-center justify-center cursor-pointer select-none"
                   onClick={handleProfileTap}
                 >
+                  {/* Spinning stars around profile */}
                   <div className="absolute inset-0 animate-spin" style={{ animationDuration: '24s' }}>
                     {Array.from({ length: 12 }).map((_, i) => {
                       const angle = (i * 30) * (Math.PI / 180);
@@ -364,7 +365,8 @@ const Index = () => {
                       );
                     })}
                   </div>
-                  <div className="w-36 h-36 md:w-48 md:h-48 rounded-full overflow-hidden border-4 border-white/20 shadow-2xl z-10 hover:scale-105 transition-transform duration-500">
+                  {/* Floating profile with blue border */}
+                  <div className="w-36 h-36 md:w-48 md:h-48 rounded-full overflow-hidden border-[5px] border-[#003399] shadow-[0_0_30px_rgba(0,51,153,0.35)] z-10 hover:scale-105 transition-transform duration-500" style={{ animation: 'float 4s ease-in-out infinite' }}>
                     <img src={profileImg} alt={cv.name} className="w-full h-full object-cover" />
                   </div>
                 </div>
