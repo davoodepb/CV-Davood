@@ -95,26 +95,67 @@ const Index = () => {
     };
     window.addEventListener("mousemove", moveCursor);
 
-    // 2. Hero Text Scroll Animation
+    // 2. Hero cinematic scroll effect (parallax + scale + fade)
     if (heroRef.current && textRef.current) {
-      gsap.to(textRef.current, {
-        y: -100,
-        opacity: 0,
-        ease: "none",
+      const tl = gsap.timeline({
         scrollTrigger: {
           trigger: heroRef.current,
           start: "top top",
           end: "bottom top",
-          scrub: true,
+          scrub: 1,
         }
+      });
+      tl.to(textRef.current, {
+        y: -120,
+        scale: 0.92,
+        opacity: 0,
+        filter: "blur(6px)",
+        ease: "none",
       });
     }
 
-    // 3. Hero entrance animation
-    gsap.fromTo(".hero-card", 
-      { y: 80, opacity: 0, scale: 0.95 },
-      { y: 0, opacity: 1, scale: 1, duration: 1.2, ease: "power3.out", delay: 0.2 }
-    );
+    // 3. Hero entrance animation (cinematic staggered)
+    const heroTl = gsap.timeline({ delay: 0.2 });
+    heroTl
+      .fromTo(".hero-card", 
+        { y: 100, opacity: 0, scale: 0.9, rotateX: 8 },
+        { y: 0, opacity: 1, scale: 1, rotateX: 0, duration: 1.2, ease: "power3.out" }
+      )
+      .fromTo(".hero-eu-badge", 
+        { y: -20, opacity: 0, scale: 0.8 },
+        { y: 0, opacity: 1, scale: 1, duration: 0.6, ease: "back.out(2)" },
+        "-=0.6"
+      )
+      .fromTo(".hero-profile", 
+        { scale: 0.5, opacity: 0, rotate: -10 },
+        { scale: 1, opacity: 1, rotate: 0, duration: 0.8, ease: "back.out(1.7)" },
+        "-=0.4"
+      )
+      .fromTo(".hero-name", 
+        { y: 30, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.6, ease: "power3.out" },
+        "-=0.4"
+      )
+      .fromTo(".hero-title", 
+        { y: 20, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" },
+        "-=0.3"
+      )
+      .fromTo(".hero-contact", 
+        { y: 15, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.4, ease: "power3.out" },
+        "-=0.2"
+      )
+      .fromTo(".hero-social a", 
+        { y: 10, opacity: 0, scale: 0.8 },
+        { y: 0, opacity: 1, scale: 1, duration: 0.3, stagger: 0.05, ease: "back.out(2)" },
+        "-=0.2"
+      )
+      .fromTo(".hero-download", 
+        { y: 15, opacity: 0, scale: 0.9 },
+        { y: 0, opacity: 1, scale: 1, duration: 0.5, ease: "back.out(1.5)" },
+        "-=0.1"
+      );
 
     // 4. Stagger reveal for all sections with blur effect
     const cards = gsap.utils.toArray(".reveal-section");
@@ -342,13 +383,13 @@ const Index = () => {
         >
           <div ref={textRef} className="relative z-20 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 w-full animate-fade-in">
             <div className="hero-card glass-card p-8 md:p-12 rounded-[32px] border border-white/60 bg-white/94 backdrop-blur-xl shadow-2xl relative overflow-hidden opacity-0">
-              <div className="flex items-center gap-3 mb-8 justify-center md:justify-start">
+              <div className="hero-eu-badge flex items-center gap-3 mb-8 justify-center md:justify-start">
                 <EUFlag className="w-9 h-9 shadow-md rounded-sm" />
                 <span className="text-amber-600 text-lg font-heading font-bold tracking-widest uppercase">Europass</span>
               </div>
               <div className="flex flex-col md:flex-row items-center gap-10 md:gap-16">
                 <div 
-                  className="relative w-40 h-40 md:w-52 md:h-52 flex-shrink-0 flex items-center justify-center cursor-pointer select-none"
+                  className="hero-profile relative w-40 h-40 md:w-52 md:h-52 flex-shrink-0 flex items-center justify-center cursor-pointer select-none"
                   onClick={handleProfileTap}
                   style={{ animation: 'float 4s ease-in-out infinite' }}
                 >
@@ -376,11 +417,11 @@ const Index = () => {
                   </div>
                 </div>
                 <div className="text-center md:text-left flex-1">
-                  <h1 className="text-5xl md:text-6xl font-heading font-black text-stone-900 mb-3 tracking-tight">
+                  <h1 className="hero-name text-5xl md:text-6xl font-heading font-black text-stone-900 mb-3 tracking-tight">
                     {cv.name}
                   </h1>
-                  <p className="text-2xl md:text-3xl text-gradient font-bold mb-6">{cv.title}</p>
-                  <div className="flex flex-wrap justify-center md:justify-start gap-5 text-sm text-stone-700 font-medium mb-6">
+                  <p className="hero-title text-2xl md:text-3xl text-gradient font-bold mb-6">{cv.title}</p>
+                  <div className="hero-contact flex flex-wrap justify-center md:justify-start gap-5 text-sm text-stone-700 font-medium mb-6">
                     <span className="flex items-center gap-1.5"><MapPin size={15} className="text-amber-500" /> {cv.location}</span>
                     <span className="flex items-center gap-1.5"><Phone size={15} className="text-amber-500" /> {cv.phone}</span>
                     <span className="flex items-center gap-1.5"><Mail size={15} className="text-amber-500" /> {cv.email}</span>
@@ -388,7 +429,7 @@ const Index = () => {
                   
                   {/* Social Links */}
                   {socialLinks.length > 0 && (
-                    <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-4">
+                    <div className="hero-social flex flex-wrap justify-center md:justify-start gap-3 mt-4">
                       {socialLinks.map((s) => (
                         <a key={s.key} href={s.url} target="_blank" rel="noopener noreferrer"
                           className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/50 hover:bg-white/90 border border-white/80 hover:border-amber-500/30 text-stone-700 text-xs font-bold tracking-wider uppercase transition-all duration-300 hover:scale-105 hover:text-amber-600 shadow-md">
@@ -412,7 +453,7 @@ const Index = () => {
                     </div>
                   )}
                   <button onClick={handleDownloadPDF}
-                    className="glass-btn-3d mt-8 font-bold gap-2 flex items-center justify-center px-8 py-4 text-sm uppercase tracking-widest shadow-lg">
+                    className="hero-download glass-btn-3d mt-8 font-bold gap-2 flex items-center justify-center px-8 py-4 text-sm uppercase tracking-widest shadow-lg">
                     <Download size={15} className="text-amber-500" /> Download CV as PDF
                   </button>
                 </div>
