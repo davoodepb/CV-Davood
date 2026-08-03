@@ -14,6 +14,7 @@ import Shop from "./pages/Shop";
 import Chat from "./pages/Chat";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
+import { HeroScrollDemo } from "./pages/ScrollDemo";
 import Navbar from "@/components/Navbar";
 import InstallApp from "@/components/InstallApp";
 
@@ -68,6 +69,7 @@ const AppContent = () => {
             <Route path="/" element={<Index />} />
             <Route path="/shop" element={<Shop />} />
             <Route path="/chat" element={<Chat />} />
+            <Route path="/showcase" element={<HeroScrollDemo />} />
             <Route path="/dashboard-interno" element={<SecretAdminRoute />} />
             <Route path="/admin" element={<NotFound />} />
             <Route path="*" element={<NotFound />} />
