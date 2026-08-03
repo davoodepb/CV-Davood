@@ -11,6 +11,7 @@ export interface CVData {
   address: string;
   dob: string;
   location: string;
+  profileImage: string;
   socialLinks: {
     github: string;
     linkedin: string;
@@ -38,6 +39,7 @@ const defaultCV: CVData = {
   address: "Rua do Raio, nº 75, Braga",
   dob: "22/05/2006",
   location: "Braga, Portugal",
+  profileImage: "",
   socialLinks: {
     github: "https://github.com/davoodepb",
     linkedin: "https://www.linkedin.com/in/davood-sharifi-a801743b9",

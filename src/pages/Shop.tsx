@@ -93,6 +93,9 @@ const Shop = () => {
         className="fixed w-[600px] h-[600px] rounded-full bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.08)_0%,rgba(245,158,11,0.04)_50%,transparent_100%)] pointer-events-none -translate-x-1/2 -translate-y-1/2 z-10 mix-blend-multiply no-print"
       />
 
+      {/* Glass overlay to make content readable over video */}
+      <div className="fixed inset-0 bg-white/70 backdrop-blur-sm z-0" />
+
       <div className="relative z-20 pt-24 pb-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12 animate-fade-in">
           <h1 className="text-4xl md:text-5xl font-heading font-black text-gradient tracking-tight mb-3">Shop</h1>

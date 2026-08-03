@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Download, Mail, Phone, MapPin, Calendar, Briefcase, GraduationCap, Globe, CheckCircle, Github, Linkedin, Instagram, MessageCircle } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import profileImg from "@/assets/profile.jpg";
+import defaultProfileImg from "@/assets/profile.jpg";
 import { EUFlag } from "@/components/EUFlag";
 import jsPDF from "jspdf";
 import { useCV } from "@/contexts/CVContext";
@@ -26,6 +26,7 @@ const Index = () => {
   const cursorGlowRef = useRef<HTMLDivElement>(null);
   const { cv } = useCV();
   const navigate = useNavigate();
+  const profileImg = cv.profileImage || defaultProfileImg;
 
   // Secret admin access: tap profile 5 times
   const [tapCount, setTapCount] = useState(0);
@@ -347,13 +348,13 @@ const Index = () => {
               </div>
               <div className="flex flex-col md:flex-row items-center gap-10 md:gap-16">
                 <div 
-                  className="relative w-44 h-44 md:w-56 md:h-56 flex-shrink-0 flex items-center justify-center cursor-pointer select-none"
+                  className="relative w-40 h-40 md:w-52 md:h-52 flex-shrink-0 flex items-center justify-center cursor-pointer select-none"
                   onClick={handleProfileTap}
                   style={{ animation: 'float 4s ease-in-out infinite' }}
                 >
                   {/* Blue gradient glow ring */}
-                  <div className="absolute inset-[-8px] rounded-full bg-gradient-to-br from-[#003399] via-[#0055cc] to-[#003399] opacity-20 blur-xl" />
-                  <div className="absolute inset-[-4px] rounded-full bg-gradient-to-br from-[#003399] via-[#1a6bff] to-[#003399] shadow-[0_0_40px_rgba(0,51,153,0.4)]" />
+                  <div className="absolute inset-[-6px] rounded-full bg-gradient-to-br from-[#003399] via-[#0055cc] to-[#003399] opacity-15 blur-lg" />
+                  <div className="absolute inset-[-3px] rounded-full bg-gradient-to-br from-[#003399] via-[#1a6bff] to-[#003399] shadow-[0_0_25px_rgba(0,51,153,0.3)]" />
                   {/* Spinning stars - move together with profile */}
                   <div className="absolute inset-0 animate-spin" style={{ animationDuration: '20s' }}>
                     {Array.from({ length: 12 }).map((_, i) => {
@@ -369,8 +370,8 @@ const Index = () => {
                       );
                     })}
                   </div>
-                  {/* Profile image with blue gradient border */}
-                  <div className="w-36 h-36 md:w-48 md:h-48 rounded-full overflow-hidden z-10 hover:scale-105 transition-transform duration-500" style={{ background: 'linear-gradient(135deg, #003399, #1a6bff, #003399)', padding: '4px' }}>
+                  {/* Profile image with thin blue gradient border */}
+                  <div className="w-36 h-36 md:w-48 md:h-48 rounded-full overflow-hidden z-10 hover:scale-105 transition-transform duration-500" style={{ background: 'linear-gradient(135deg, #003399, #1a6bff, #003399)', padding: '3px' }}>
                     <img src={profileImg} alt={cv.name} className="w-full h-full object-cover rounded-full" />
                   </div>
                 </div>

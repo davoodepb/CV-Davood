@@ -57,19 +57,21 @@ export const FileUploader = ({
         if (t.endsWith("/*")) return file.type.startsWith(t.replace("/*", "/"));
         // Handle PDF specifically - some browsers report different MIME types
         if (t === "application/pdf" && fileExt === ".pdf") return true;
-        // Handle doc/docx
+        // Handle doc/docx - accept as PDF
         if (t === "application/pdf" && (fileExt === ".doc" || fileExt === ".docx")) return true;
+        // Accept files with no MIME type but valid extension
+        if (!file.type && fileExt) return true;
         return file.type === t;
       });
       if (!matchesType) {
-        return `Unsupported file type (${fileExt}). Allowed: ${allowedTypes}`;
+        return `Unsupported file type (${fileExt || "unknown"}). Allowed: ${allowedTypes}`;
       }
     }
 
-    // Check file size
+    // Check file size - 50MB default limit
     const limit = maxSizeMB
       ? maxSizeMB * 1024 * 1024
-      : FILE_SIZE_LIMITS[allowedTypes] || FILE_SIZE_LIMITS["*"];
+      : 50 * 1024 * 1024;
     if (file.size > limit) {
       return `File too large (${formatFileSize(file.size)}). Maximum: ${formatFileSize(limit)}`;
     }

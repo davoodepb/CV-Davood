@@ -227,6 +227,7 @@ const CVPanel = () => {
   const [address, setAddress] = useState(cv.address);
   const [location, setLocation] = useState(cv.location);
   const [dob, setDob] = useState(cv.dob);
+  const [profileImage, setProfileImage] = useState(cv.profileImage);
   const [education, setEducation] = useState(cv.education);
   const [experience, setExperience] = useState(cv.experience);
   const [technicalSkills, setTechnicalSkills] = useState(cv.technicalSkills);
@@ -234,7 +235,7 @@ const CVPanel = () => {
   const [languages, setLanguages] = useState(cv.languages);
 
   const handleSave = async () => {
-    updateCV({ name, title, about, phone, email, address, location, dob, education, experience, technicalSkills, creativeSkills, languages });
+    updateCV({ name, title, about, phone, email, address, location, dob, profileImage, education, experience, technicalSkills, creativeSkills, languages });
     try {
       await saveToFirestore();
       toast.success("CV saved to Firebase! Changes are live.");
@@ -332,6 +333,26 @@ const CVPanel = () => {
           <div><label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Date of Birth</label><input className={glassInputClass} value={dob} onChange={(e) => setDob(e.target.value)} /></div>
         </div>
         <div><label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">About Me</label><textarea className={glassTextareaClass} value={about} onChange={(e) => setAbout(e.target.value)} rows={4} /></div>
+        
+        {/* Profile Image Upload */}
+        <div>
+          <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Profile Image</label>
+          <div className="flex items-center gap-4">
+            {profileImage && (
+              <img src={profileImage} alt="Profile" className="w-20 h-20 rounded-full object-cover border-2 border-amber-500/30" />
+            )}
+            <div className="flex-1">
+              <FileUploader
+                folder="profile"
+                allowedTypes="image/*"
+                maxSizeMB={5}
+                label="Upload Profile Image"
+                onUploadSuccess={(url) => setProfileImage(url)}
+                showPreview={false}
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Education */}

@@ -102,6 +102,9 @@ const Chat = () => {
     <div className="min-h-screen bg-transparent text-stone-800 flex flex-col overflow-x-hidden relative selection:bg-amber-500/20 selection:text-amber-700">
       <Navbar />
 
+      {/* Glass overlay */}
+      <div className="fixed inset-0 bg-white/70 backdrop-blur-sm z-0" />
+
       {/* Sunlit Amber Cursor Glow Follower */}
       <div 
         ref={cursorGlowRef} 
