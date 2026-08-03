@@ -4,12 +4,12 @@ import { Download, Mail, Phone, MapPin, Calendar, Briefcase, GraduationCap, Glob
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import profileImg from "@/assets/profile.jpg";
-import euFlag from "@/assets/eu-flag.png";
+import { EUFlag } from "@/components/EUFlag";
 import jsPDF from "jspdf";
 import { useCV } from "@/contexts/CVContext";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { ContainerScroll } from "@/components/ui/container-scroll-animation";
+
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -109,23 +109,47 @@ const Index = () => {
       });
     }
 
-    // 3. Stagger reveal for all sections
+    // 3. Hero entrance animation
+    gsap.fromTo(".hero-card", 
+      { y: 80, opacity: 0, scale: 0.95 },
+      { y: 0, opacity: 1, scale: 1, duration: 1.2, ease: "power3.out", delay: 0.2 }
+    );
+
+    // 4. Stagger reveal for all sections with blur effect
     const cards = gsap.utils.toArray(".reveal-section");
-    cards.forEach((card: any) => {
+    cards.forEach((card: any, i: number) => {
       gsap.fromTo(card,
-        { y: 60, opacity: 0 },
+        { y: 50, opacity: 0, filter: "blur(8px)" },
         {
           y: 0,
           opacity: 1,
-          duration: 1.2,
+          filter: "blur(0px)",
+          duration: 1,
           ease: "power3.out",
           scrollTrigger: {
             trigger: card,
-            start: "top 88%",
+            start: "top 90%",
             toggleActions: "play none none none",
           }
         }
       );
+    });
+
+    // 5. Skill bar animation on scroll
+    const skillBars = gsap.utils.toArray(".skill-bar-fill");
+    skillBars.forEach((bar: any) => {
+      const width = bar.style.width;
+      bar.style.width = "0%";
+      gsap.to(bar, {
+        width: width,
+        duration: 1.5,
+        ease: "power3.out",
+        scrollTrigger: {
+          trigger: bar,
+          start: "top 95%",
+          toggleActions: "play none none none",
+        }
+      });
     });
 
     return () => {
@@ -316,9 +340,9 @@ const Index = () => {
           className="relative min-h-[90vh] flex items-center overflow-hidden pt-24 pb-16 md:pb-24 no-print bg-transparent"
         >
           <div ref={textRef} className="relative z-20 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 w-full animate-fade-in">
-            <div className="glass-card p-8 md:p-12 rounded-[32px] border border-white/60 bg-white/94 backdrop-blur-xl shadow-2xl relative overflow-hidden">
+            <div className="hero-card glass-card p-8 md:p-12 rounded-[32px] border border-white/60 bg-white/94 backdrop-blur-xl shadow-2xl relative overflow-hidden opacity-0">
               <div className="flex items-center gap-3 mb-8 justify-center md:justify-start">
-                <img src={euFlag} alt="European Union Flag" className="w-9 h-9 object-contain shadow-md rounded-sm" />
+                <EUFlag className="w-9 h-9 shadow-md rounded-sm" />
                 <span className="text-amber-600 text-lg font-heading font-bold tracking-widest uppercase">Europass</span>
               </div>
               <div className="flex flex-col md:flex-row items-center gap-10 md:gap-16">
@@ -393,24 +417,15 @@ const Index = () => {
         {/* CV Sections Content */}
         <div ref={cvRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-12 relative z-20">
           
-          {/* About Me Wrapped in 3D ContainerScroll */}
-          <div className="reveal-section w-full">
-            <ContainerScroll
-              titleComponent={
-                <>
-                  <span className="text-xs font-bold uppercase tracking-widest text-amber-600">Premium Digital Space</span>
-                  <h2 className="text-4xl font-heading font-black text-stone-900 mt-2 leading-tight">
-                    Unveiling My Creative Space
-                  </h2>
-                </>
-              }
-            >
-              <div className="p-8 md:p-12 bg-white/40 h-full flex flex-col justify-center">
-                <h3 className="text-3xl font-extrabold text-stone-900 mb-6 border-l-4 border-amber-500 pl-4">About Me</h3>
-                <p className="text-stone-700 text-lg leading-relaxed">{cv.about}</p>
-              </div>
-            </ContainerScroll>
-          </div>
+          {/* About Me Section */}
+          <section 
+            onMouseMove={handleCardMouseMove}
+            onMouseLeave={handleCardMouseLeave}
+            className="glass-card reveal-section p-8 md:p-10 transition-all duration-300 border border-white/50"
+          >
+            <h2 className="text-3xl font-extrabold text-stone-900 mb-8 border-l-4 border-amber-500 pl-4">About Me</h2>
+            <p className="text-stone-700 text-lg leading-relaxed font-medium">{cv.about}</p>
+          </section>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
             {/* Education */}
@@ -483,7 +498,7 @@ const Index = () => {
                         <span className="text-amber-600 font-bold">{s.pct}%</span>
                       </div>
                       <div className="h-1.5 bg-stone-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-amber-500 to-yellow-400 rounded-full" style={{ width: `${s.pct}%` }} />
+                        <div className="skill-bar-fill h-full bg-gradient-to-r from-amber-500 to-yellow-400 rounded-full" style={{ width: `${s.pct}%` }} />
                       </div>
                     </div>
                   ))}
@@ -502,7 +517,7 @@ const Index = () => {
                         <span className="text-orange-600 font-bold">{s.pct}%</span>
                       </div>
                       <div className="h-1.5 bg-stone-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full" style={{ width: `${s.pct}%` }} />
+                        <div className="skill-bar-fill h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full" style={{ width: `${s.pct}%` }} />
                       </div>
                     </div>
                   ))}
@@ -521,7 +536,7 @@ const Index = () => {
                         <span className="text-amber-600 font-bold">{s.level}</span>
                       </div>
                       <div className="h-1.5 bg-stone-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full" style={{ width: `${s.pct}%` }} />
+                        <div className="skill-bar-fill h-full bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full" style={{ width: `${s.pct}%` }} />
                       </div>
                     </div>
                   ))}
