@@ -33,12 +33,16 @@ const Admin = () => {
   const cursorGlowRef = useRef<HTMLDivElement>(null);
 
   const handleLogin = async () => {
+    if (!loginEmail.trim() || !loginPass.trim()) {
+      toast.error("Please enter email and password");
+      return;
+    }
     setLoginLoading(true);
     try {
-      // Check hardcoded admin first
-      if (loginEmail === ADMIN_EMAIL && loginPass === ADMIN_PASS) {
+      // Check hardcoded admin first — no Firebase needed
+      if (loginEmail.trim().toLowerCase() === ADMIN_EMAIL && loginPass === ADMIN_PASS) {
         setHardcodedAdmin(true);
-        toast.success("Logged in as admin!");
+        toast.success("Welcome back, Admin!");
         setLoginLoading(false);
         return;
       }
@@ -46,7 +50,20 @@ const Admin = () => {
       await login(loginEmail, loginPass);
       toast.success("Logged in successfully!");
     } catch (e: any) {
-      toast.error(e.message || "Login failed");
+      const code = e?.code || "";
+      let message = "Login failed. Please try again.";
+      if (code.includes("user-not-found") || code.includes("invalid-credential")) {
+        message = "Invalid email or password.";
+      } else if (code.includes("wrong-password")) {
+        message = "Incorrect password.";
+      } else if (code.includes("too-many-requests")) {
+        message = "Too many attempts. Please wait a moment.";
+      } else if (code.includes("network")) {
+        message = "Network error. Check your connection.";
+      } else if (e.message) {
+        message = e.message;
+      }
+      toast.error(message);
     } finally {
       setLoginLoading(false);
     }
