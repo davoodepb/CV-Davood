@@ -24,10 +24,11 @@ export interface CVData {
   technicalSkills: { name: string; pct: number }[];
   creativeSkills: { name: string; pct: number }[];
   languages: { name: string; pct: number; level: string }[];
-  customLinks: { label: string; url: string }[];
-  certificates: { title: string; school: string; date: string; fileUrl: string; imgUrl: string }[];
-  gallery: { title: string; imgUrl: string }[];
-  videos: { title: string; videoUrl: string }[];
+  customLinks: { label: string; url: string; type: string; category: string }[];
+  certificates: { title: string; school: string; date: string; fileUrl: string; imgUrl: string; category: string }[];
+  gallery: { title: string; imgUrl: string; description: string; category: string; isFeatured: boolean }[];
+  videos: { title: string; description: string; category: string; videoUrl: string; youtubeUrls: string[]; type: string }[];
+  documents: { title: string; description: string; fileUrl: string; fileType: string; fileSize: string; category: string }[];
 }
 
 const defaultCV: CVData = {
@@ -99,6 +100,7 @@ const defaultCV: CVData = {
   certificates: [],
   gallery: [],
   videos: [],
+  documents: [],
 };
 
 const CV_DOC_PATH = "settings/cv";

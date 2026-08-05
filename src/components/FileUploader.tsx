@@ -24,6 +24,7 @@ interface FileUploaderProps {
   allowedTypes?: string;
   label?: string;
   maxSizeMB?: number;
+  showPreview?: boolean;
 }
 
 export const FileUploader = ({

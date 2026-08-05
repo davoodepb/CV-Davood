@@ -776,215 +776,536 @@ const MediaPanel = () => {
   const [certificates, setCertificates] = useState(cv.certificates || []);
   const [gallery, setGallery] = useState(cv.gallery || []);
   const [videos, setVideos] = useState(cv.videos || []);
+  const [documents, setDocuments] = useState(cv.documents || []);
+  const [subTab, setSubTab] = useState<"certs" | "gallery" | "videos" | "docs" | "links">("certs");
+  const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
-    updateCV({ customLinks, certificates, gallery, videos });
+    setSaving(true);
+    updateCV({ customLinks, certificates, gallery, videos, documents });
     try {
       await saveToFirestore();
-      toast.success("Media & Links saved successfully!");
+      toast.success("All media saved to Firebase!");
     } catch {
-      toast.success("Media & Links updated locally.");
+      toast.success("Media updated locally.");
+    } finally {
+      setSaving(false);
     }
   };
 
   const glassInputClass = "w-full bg-white/40 border border-white/60 rounded-full px-5 py-3 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 placeholder:text-stone-400 text-stone-800 transition-all duration-300";
+  const glassTextareaClass = "w-full bg-white/40 border border-white/60 rounded-2xl p-5 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 placeholder:text-stone-400 text-stone-800 transition-all duration-300";
+
+  // YouTube URL parser
+  const getYouTubeId = (url: string): string | null => {
+    const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|shorts\/))([a-zA-Z0-9_-]{11})/);
+    return match ? match[1] : null;
+  };
+
+  const subTabs = [
+    { key: "certs" as const, label: "📄 Certificates & PDFs", count: certificates.length },
+    { key: "gallery" as const, label: "🖼️ Images", count: gallery.length },
+    { key: "videos" as const, label: "🎬 Videos & YouTube", count: videos.length },
+    { key: "docs" as const, label: "📁 Documents", count: documents.length },
+    { key: "links" as const, label: "🔗 Links", count: customLinks.length },
+  ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4 border-b border-stone-200 pb-4">
         <div>
-          <h2 className="text-2xl font-heading font-black text-stone-900">Manage Media & Extra Links</h2>
-          <p className="text-xs text-stone-500 mt-1 uppercase font-bold tracking-widest">Add course certificates, images, videos, and custom URLs</p>
+          <h2 className="text-2xl font-heading font-black text-stone-900">Content Management</h2>
+          <p className="text-xs text-stone-500 mt-1 uppercase font-bold tracking-widest">Full CMS — Upload, preview, edit & organize all your content</p>
         </div>
-        <button className="glass-btn-3d px-6 py-3 font-bold gap-2 flex items-center shadow-md" onClick={handleSave}><Save size={15} className="text-amber-600" /> Save Media</button>
+        <button
+          className="glass-btn-3d px-6 py-3 font-bold gap-2 flex items-center shadow-md disabled:opacity-50"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          <Save size={15} className="text-amber-600" />
+          {saving ? "Saving..." : "Save All Media"}
+        </button>
       </div>
 
-      {/* Custom Links */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between border-b border-stone-200 pb-2">
-          <h3 className="text-lg font-bold text-amber-600 uppercase tracking-wider text-xs">Custom Links</h3>
-          <button className="glass-btn-3d px-4 py-2 text-xs font-bold uppercase tracking-wider gap-1.5 flex items-center" onClick={() => setCustomLinks([...customLinks, { label: "", url: "" }])}><Plus size={13} className="text-amber-600" /> Add Link</button>
-        </div>
-        {customLinks.map((lnk, i) => (
-          <div key={i} className="flex gap-4 items-center">
-            <input className={glassInputClass} placeholder="Link Label (e.g. My Portfolio)" value={lnk.label} onChange={e => {
-              const copy = [...customLinks];
-              copy[i].label = e.target.value;
-              setCustomLinks(copy);
-            }} />
-            <input className={glassInputClass} placeholder="URL (https://...)" value={lnk.url} onChange={e => {
-              const copy = [...customLinks];
-              copy[i].url = e.target.value;
-              setCustomLinks(copy);
-            }} />
-            <button className="p-2 text-red-500 hover:text-red-650 hover:bg-red-500/10 rounded-full transition-colors" onClick={() => setCustomLinks(customLinks.filter((_, idx) => idx !== i))}><Trash2 size={15} /></button>
-          </div>
+      {/* Sub-tabs */}
+      <div className="flex flex-wrap gap-2">
+        {subTabs.map(t => (
+          <button
+            key={t.key}
+            onClick={() => setSubTab(t.key)}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${
+              subTab === t.key
+                ? "bg-white/70 text-amber-700 border border-amber-500/30 shadow-[0_0_12px_rgba(212,175,55,0.15)]"
+                : "text-stone-600 hover:text-stone-900 hover:bg-white/40 border border-transparent"
+            }`}
+          >
+            {t.label}
+            {t.count > 0 && (
+              <span className="bg-amber-500/20 text-amber-700 rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-black">{t.count}</span>
+            )}
+          </button>
         ))}
       </div>
 
-      {/* Certificates */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between border-b border-stone-200 pb-2">
-          <h3 className="text-lg font-bold text-amber-600 uppercase tracking-wider text-xs">Certificates & Courses</h3>
-          <button className="glass-btn-3d px-4 py-2 text-xs font-bold uppercase tracking-wider gap-1.5 flex items-center" onClick={() => setCertificates([...certificates, { title: "", school: "", date: "", fileUrl: "", imgUrl: "" }])}><Plus size={13} className="text-amber-600" /> Add Certificate</button>
-        </div>
-        {certificates.map((cert, i) => (
-          <div key={i} className="p-5 rounded-2xl border border-white/50 bg-white/20 space-y-4 shadow-sm relative">
-            <button className="absolute right-4 top-4 p-2 text-red-500 hover:text-red-650 hover:bg-red-500/10 rounded-full transition-colors" onClick={() => setCertificates(certificates.filter((_, idx) => idx !== i))}><Trash2 size={15} /></button>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Certificate Title</label>
-                <input className={glassInputClass} placeholder="e.g. Google Cloud Architecture" value={cert.title} onChange={e => {
-                  const copy = [...certificates];
-                  copy[i].title = e.target.value;
-                  setCertificates(copy);
-                }} />
-              </div>
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">School/Issuer</label>
-                <input className={glassInputClass} placeholder="e.g. Braga Professional School" value={cert.school} onChange={e => {
-                  const copy = [...certificates];
-                  copy[i].school = e.target.value;
-                  setCertificates(copy);
-                }} />
-              </div>
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Date</label>
-                <input className={glassInputClass} placeholder="e.g. June 2026" value={cert.date} onChange={e => {
-                  const copy = [...certificates];
-                  copy[i].date = e.target.value;
-                  setCertificates(copy);
-                }} />
-              </div>
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Certificate File URL (PDF)</label>
-                <input className={glassInputClass} placeholder="https://... (or local path)" value={cert.fileUrl} onChange={e => {
-                  const copy = [...certificates];
-                  copy[i].fileUrl = e.target.value;
-                  setCertificates(copy);
-                }} />
-                <div className="mt-2">
-                  <FileUploader 
-                    label="Upload Certificate PDF / Document" 
-                    allowedTypes="application/pdf,.doc,.docx"
-                    folder="certificates"
-                    onUploadSuccess={(url) => {
-                      const copy = [...certificates];
-                      copy[i].fileUrl = url;
-                      setCertificates(copy);
-                    }}
-                  />
+      {/* ═══════════ CERTIFICATES & PDFS ═══════════ */}
+      {subTab === "certs" && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-stone-700 uppercase tracking-wider">Certificates & PDF Documents</h3>
+            <button className="glass-btn-3d px-4 py-2 text-xs font-bold uppercase tracking-wider gap-1.5 flex items-center" onClick={() => setCertificates([...certificates, { title: "", school: "", date: "", fileUrl: "", imgUrl: "", category: "certificate" }])}>
+              <Plus size={13} className="text-amber-600" /> Add Certificate
+            </button>
+          </div>
+
+          {certificates.length === 0 && (
+            <div className="text-center py-12 text-stone-400">
+              <FileText size={40} className="mx-auto mb-3 opacity-40" />
+              <p className="text-sm font-bold uppercase tracking-wider">No certificates yet</p>
+              <p className="text-xs mt-1">Click "Add Certificate" to upload your first PDF or credential</p>
+            </div>
+          )}
+
+          {certificates.map((cert, i) => (
+            <div key={i} className="p-5 rounded-2xl border border-white/50 bg-white/20 space-y-4 shadow-sm relative group">
+              <button className="absolute right-4 top-4 p-2 text-red-500 hover:bg-red-500/10 rounded-full transition-colors opacity-60 group-hover:opacity-100"
+                onClick={() => { if (window.confirm("Delete this certificate?")) setCertificates(certificates.filter((_, idx) => idx !== i)); }}>
+                <Trash2 size={15} />
+              </button>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Title *</label>
+                  <input className={glassInputClass} placeholder="e.g. Google Cloud Architecture" value={cert.title} onChange={e => {
+                    const c = [...certificates]; c[i] = { ...c[i], title: e.target.value }; setCertificates(c);
+                  }} />
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">School / Issuer</label>
+                  <input className={glassInputClass} placeholder="e.g. Braga Professional School" value={cert.school} onChange={e => {
+                    const c = [...certificates]; c[i] = { ...c[i], school: e.target.value }; setCertificates(c);
+                  }} />
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Date</label>
+                  <input className={glassInputClass} placeholder="e.g. June 2026" value={cert.date} onChange={e => {
+                    const c = [...certificates]; c[i] = { ...c[i], date: e.target.value }; setCertificates(c);
+                  }} />
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Category</label>
+                  <select className="bg-white/40 border border-white/60 rounded-full px-5 py-3 text-sm focus:outline-none focus:border-amber-500 text-stone-800 w-full" value={cert.category || "certificate"} onChange={e => {
+                    const c = [...certificates]; c[i] = { ...c[i], category: e.target.value }; setCertificates(c);
+                  }}>
+                    <option value="certificate">Certificate</option>
+                    <option value="course">Course</option>
+                    <option value="diploma">Diploma</option>
+                    <option value="license">License</option>
+                    <option value="other">Other</option>
+                  </select>
                 </div>
               </div>
-              <div className="md:col-span-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Credential Image URL</label>
-                <input className={glassInputClass} placeholder="https://... (or local path)" value={cert.imgUrl} onChange={e => {
-                  const copy = [...certificates];
-                  copy[i].imgUrl = e.target.value;
-                  setCertificates(copy);
+
+              {/* PDF Upload + Preview */}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Certificate PDF / Document</label>
+                <input className={glassInputClass} placeholder="Paste URL or upload below" value={cert.fileUrl} onChange={e => {
+                  const c = [...certificates]; c[i] = { ...c[i], fileUrl: e.target.value }; setCertificates(c);
                 }} />
                 <div className="mt-2">
-                  <FileUploader 
-                    label="Upload Credential Image" 
-                    allowedTypes="image/*"
-                    folder="certificates/images"
-                    onUploadSuccess={(url) => {
-                      const copy = [...certificates];
-                      copy[i].imgUrl = url;
-                      setCertificates(copy);
-                    }}
-                  />
+                  <FileUploader label="Upload PDF / Document" allowedTypes="application/pdf,.doc,.docx,.pdf" folder="certificates" onUploadSuccess={(url) => {
+                    const c = [...certificates]; c[i] = { ...c[i], fileUrl: url }; setCertificates(c);
+                  }} />
                 </div>
+                {cert.fileUrl && (
+                  <div className="mt-3 space-y-2">
+                    {cert.fileUrl.toLowerCase().includes('.pdf') || cert.fileUrl.includes('firebasestorage') ? (
+                      <iframe src={cert.fileUrl} className="w-full h-48 rounded-xl border border-stone-200" title={`PDF: ${cert.title}`} />
+                    ) : null}
+                    <a href={cert.fileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-xs text-amber-600 hover:text-amber-500 font-bold uppercase tracking-wider">
+                      <FileText size={13} /> View / Download PDF ↗
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              {/* Credential Image Upload + Preview */}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Credential Image (optional)</label>
+                <input className={glassInputClass} placeholder="Paste image URL or upload" value={cert.imgUrl} onChange={e => {
+                  const c = [...certificates]; c[i] = { ...c[i], imgUrl: e.target.value }; setCertificates(c);
+                }} />
+                <div className="mt-2">
+                  <FileUploader label="Upload Image" allowedTypes="image/*" folder="certificates/images" onUploadSuccess={(url) => {
+                    const c = [...certificates]; c[i] = { ...c[i], imgUrl: url }; setCertificates(c);
+                  }} />
+                </div>
+                {cert.imgUrl && (
+                  <img src={cert.imgUrl} alt={cert.title} className="mt-2 w-32 h-24 object-cover rounded-xl border border-stone-200 shadow-sm" />
+                )}
               </div>
             </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Gallery / Images */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between border-b border-stone-200 pb-2">
-          <h3 className="text-lg font-bold text-amber-600 uppercase tracking-wider text-xs">My Gallery / Images</h3>
-          <button className="glass-btn-3d px-4 py-2 text-xs font-bold uppercase tracking-wider gap-1.5 flex items-center" onClick={() => setGallery([...gallery, { title: "", imgUrl: "" }])}><Plus size={13} className="text-amber-600" /> Add Image</button>
+          ))}
         </div>
-        {gallery.map((img, i) => (
-          <div key={i} className="p-4 rounded-2xl border border-white/50 bg-white/20 space-y-3 relative">
-            <button className="absolute right-4 top-4 p-2 text-red-500 hover:text-red-650 hover:bg-red-500/10 rounded-full transition-colors" onClick={() => setGallery(gallery.filter((_, idx) => idx !== i))}><Trash2 size={15} /></button>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Image Title</label>
-                <input className={glassInputClass} placeholder="Image Title" value={img.title} onChange={e => {
-                  const copy = [...gallery];
-                  copy[i].title = e.target.value;
-                  setGallery(copy);
-                }} />
-              </div>
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Image URL / Upload</label>
-                <input className={glassInputClass} placeholder="Image URL (https://... or local)" value={img.imgUrl} onChange={e => {
-                  const copy = [...gallery];
-                  copy[i].imgUrl = e.target.value;
-                  setGallery(copy);
-                }} />
-                <div className="mt-2">
-                  <FileUploader 
-                    label="Upload Gallery Image" 
-                    allowedTypes="image/*"
-                    folder="gallery"
-                    onUploadSuccess={(url) => {
-                      const copy = [...gallery];
-                      copy[i].imgUrl = url;
-                      setGallery(copy);
-                    }}
-                  />
+      )}
+
+      {/* ═══════════ IMAGE GALLERY ═══════════ */}
+      {subTab === "gallery" && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-stone-700 uppercase tracking-wider">Image Gallery</h3>
+            <button className="glass-btn-3d px-4 py-2 text-xs font-bold uppercase tracking-wider gap-1.5 flex items-center" onClick={() => setGallery([...gallery, { title: "", imgUrl: "", description: "", category: "general", isFeatured: false }])}>
+              <Plus size={13} className="text-amber-600" /> Add Image
+            </button>
+          </div>
+
+          {gallery.length === 0 && (
+            <div className="text-center py-12 text-stone-400">
+              <Image size={40} className="mx-auto mb-3 opacity-40" />
+              <p className="text-sm font-bold uppercase tracking-wider">No images yet</p>
+              <p className="text-xs mt-1">Click "Add Image" to start building your gallery</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-4">
+            {gallery.map((img, i) => (
+              <div key={i} className="p-5 rounded-2xl border border-white/50 bg-white/20 shadow-sm relative group">
+                <button className="absolute right-4 top-4 p-2 text-red-500 hover:bg-red-500/10 rounded-full transition-colors opacity-60 group-hover:opacity-100"
+                  onClick={() => { if (window.confirm("Delete this image?")) setGallery(gallery.filter((_, idx) => idx !== i)); }}>
+                  <Trash2 size={15} />
+                </button>
+
+                <div className="flex gap-5">
+                  {/* Thumbnail Preview */}
+                  <div className="w-28 h-28 rounded-xl border border-stone-200 bg-stone-100/50 overflow-hidden flex-shrink-0">
+                    {img.imgUrl ? (
+                      <img src={img.imgUrl} alt={img.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-stone-300"><Image size={24} /></div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1 block">Title *</label>
+                        <input className={glassInputClass} placeholder="Image title" value={img.title} onChange={e => {
+                          const c = [...gallery]; c[i] = { ...c[i], title: e.target.value }; setGallery(c);
+                        }} />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1 block">Category</label>
+                        <input className={glassInputClass} placeholder="e.g. Projects, Events" value={img.category || ""} onChange={e => {
+                          const c = [...gallery]; c[i] = { ...c[i], category: e.target.value }; setGallery(c);
+                        }} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1 block">Description</label>
+                      <input className={glassInputClass} placeholder="Short description" value={img.description || ""} onChange={e => {
+                        const c = [...gallery]; c[i] = { ...c[i], description: e.target.value }; setGallery(c);
+                      }} />
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={img.isFeatured || false} onChange={e => {
+                          const c = [...gallery]; c[i] = { ...c[i], isFeatured: e.target.checked }; setGallery(c);
+                        }} className="accent-amber-500 w-4 h-4" />
+                        <span className="text-xs font-bold text-stone-600 uppercase tracking-wider">⭐ Featured Image</span>
+                      </label>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1 block">Image URL / Upload</label>
+                      <input className={glassInputClass} placeholder="Paste URL or upload" value={img.imgUrl} onChange={e => {
+                        const c = [...gallery]; c[i] = { ...c[i], imgUrl: e.target.value }; setGallery(c);
+                      }} />
+                      <div className="mt-2">
+                        <FileUploader label="Upload Image" allowedTypes="image/*" folder="gallery" onUploadSuccess={(url) => {
+                          const c = [...gallery]; c[i] = { ...c[i], imgUrl: url }; setGallery(c);
+                        }} />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            ))}
           </div>
-        ))}
-      </div>
-
-      {/* Videos */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between border-b border-stone-200 pb-2">
-          <h3 className="text-lg font-bold text-amber-600 uppercase tracking-wider text-xs">My Videos</h3>
-          <button className="glass-btn-3d px-4 py-2 text-xs font-bold uppercase tracking-wider gap-1.5 flex items-center" onClick={() => setVideos([...videos, { title: "", videoUrl: "" }])}><Plus size={13} className="text-amber-600" /> Add Video</button>
         </div>
-        {videos.map((vid, i) => (
-          <div key={i} className="p-4 rounded-2xl border border-white/50 bg-white/20 space-y-3 relative">
-            <button className="absolute right-4 top-4 p-2 text-red-500 hover:text-red-650 hover:bg-red-500/10 rounded-full transition-colors" onClick={() => setVideos(videos.filter((_, idx) => idx !== i))}><Trash2 size={15} /></button>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Video Title</label>
-                <input className={glassInputClass} placeholder="Video Title" value={vid.title} onChange={e => {
-                  const copy = [...videos];
-                  copy[i].title = e.target.value;
-                  setVideos(copy);
-                }} />
-              </div>
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Video URL (YouTube/MP4) / Upload</label>
-                <input className={glassInputClass} placeholder="Video URL (MP4, Youtube, etc.)" value={vid.videoUrl} onChange={e => {
-                  const copy = [...videos];
-                  copy[i].videoUrl = e.target.value;
-                  setVideos(copy);
-                }} />
-                <div className="mt-2">
-                  <FileUploader 
-                    label="Upload Video File (MP4)" 
-                    allowedTypes="video/mp4"
-                    folder="videos"
-                    onUploadSuccess={(url) => {
-                      const copy = [...videos];
-                      copy[i].videoUrl = url;
-                      setVideos(copy);
-                    }}
-                  />
+      )}
+
+      {/* ═══════════ VIDEOS & YOUTUBE ═══════════ */}
+      {subTab === "videos" && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-stone-700 uppercase tracking-wider">Videos & YouTube</h3>
+            <button className="glass-btn-3d px-4 py-2 text-xs font-bold uppercase tracking-wider gap-1.5 flex items-center" onClick={() => setVideos([...videos, { title: "", description: "", category: "general", videoUrl: "", youtubeUrls: [""], type: "youtube" }])}>
+              <Plus size={13} className="text-amber-600" /> Add Video
+            </button>
+          </div>
+
+          {videos.length === 0 && (
+            <div className="text-center py-12 text-stone-400">
+              <Video size={40} className="mx-auto mb-3 opacity-40" />
+              <p className="text-sm font-bold uppercase tracking-wider">No videos yet</p>
+              <p className="text-xs mt-1">Add YouTube links or upload MP4 video files</p>
+            </div>
+          )}
+
+          {videos.map((vid, i) => (
+            <div key={i} className="p-5 rounded-2xl border border-white/50 bg-white/20 space-y-4 shadow-sm relative group">
+              <button className="absolute right-4 top-4 p-2 text-red-500 hover:bg-red-500/10 rounded-full transition-colors opacity-60 group-hover:opacity-100"
+                onClick={() => { if (window.confirm("Delete this video?")) setVideos(videos.filter((_, idx) => idx !== i)); }}>
+                <Trash2 size={15} />
+              </button>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Title *</label>
+                  <input className={glassInputClass} placeholder="Video title" value={vid.title} onChange={e => {
+                    const c = [...videos]; c[i] = { ...c[i], title: e.target.value }; setVideos(c);
+                  }} />
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Category</label>
+                  <input className={glassInputClass} placeholder="e.g. Tutorial, Vlog" value={vid.category || ""} onChange={e => {
+                    const c = [...videos]; c[i] = { ...c[i], category: e.target.value }; setVideos(c);
+                  }} />
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Type</label>
+                  <select className="bg-white/40 border border-white/60 rounded-full px-5 py-3 text-sm focus:outline-none focus:border-amber-500 text-stone-800 w-full" value={vid.type || "youtube"} onChange={e => {
+                    const c = [...videos]; c[i] = { ...c[i], type: e.target.value }; setVideos(c);
+                  }}>
+                    <option value="youtube">YouTube</option>
+                    <option value="upload">Upload (MP4)</option>
+                    <option value="both">Both</option>
+                  </select>
                 </div>
               </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Description</label>
+                <textarea className={glassTextareaClass} placeholder="Brief description of the video" rows={2} value={vid.description || ""} onChange={e => {
+                  const c = [...videos]; c[i] = { ...c[i], description: e.target.value }; setVideos(c);
+                }} />
+              </div>
+
+              {/* YouTube URLs (multiple) */}
+              {(vid.type === "youtube" || vid.type === "both") && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase tracking-wider text-stone-600">YouTube Links</label>
+                    <button className="text-xs font-bold text-amber-600 hover:text-amber-500 uppercase tracking-wider flex items-center gap-1"
+                      onClick={() => { const c = [...videos]; c[i] = { ...c[i], youtubeUrls: [...(c[i].youtubeUrls || []), ""] }; setVideos(c); }}>
+                      <Plus size={12} /> Add URL
+                    </button>
+                  </div>
+                  {(vid.youtubeUrls || [""]).map((yt, yi) => (
+                    <div key={yi} className="space-y-2">
+                      <div className="flex gap-2 items-center">
+                        <input className={`${glassInputClass} flex-1`} placeholder="https://youtube.com/watch?v=..." value={yt} onChange={e => {
+                          const c = [...videos]; const urls = [...(c[i].youtubeUrls || [])]; urls[yi] = e.target.value; c[i] = { ...c[i], youtubeUrls: urls }; setVideos(c);
+                        }} />
+                        {(vid.youtubeUrls?.length || 0) > 1 && (
+                          <button className="p-2 text-red-500 hover:bg-red-500/10 rounded-full transition-colors" onClick={() => {
+                            const c = [...videos]; c[i] = { ...c[i], youtubeUrls: c[i].youtubeUrls.filter((_, idx) => idx !== yi) }; setVideos(c);
+                          }}><Trash2 size={13} /></button>
+                        )}
+                      </div>
+                      {/* YouTube Embed Preview */}
+                      {yt && getYouTubeId(yt) && (
+                        <div className="rounded-xl overflow-hidden border border-stone-200 shadow-sm">
+                          <iframe
+                            src={`https://www.youtube.com/embed/${getYouTubeId(yt)}`}
+                            className="w-full aspect-video"
+                            allowFullScreen
+                            title={`YouTube: ${vid.title} #${yi + 1}`}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* MP4 Upload */}
+              {(vid.type === "upload" || vid.type === "both") && (
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Video File (MP4)</label>
+                  <input className={glassInputClass} placeholder="Video URL (paste or upload)" value={vid.videoUrl} onChange={e => {
+                    const c = [...videos]; c[i] = { ...c[i], videoUrl: e.target.value }; setVideos(c);
+                  }} />
+                  <div className="mt-2">
+                    <FileUploader label="Upload Video (MP4)" allowedTypes="video/mp4,video/webm" folder="videos" maxSizeMB={100} onUploadSuccess={(url) => {
+                      const c = [...videos]; c[i] = { ...c[i], videoUrl: url }; setVideos(c);
+                    }} />
+                  </div>
+                  {vid.videoUrl && (
+                    <video src={vid.videoUrl} controls className="mt-2 w-full max-h-48 rounded-xl border border-stone-200" />
+                  )}
+                </div>
+              )}
             </div>
+          ))}
+        </div>
+      )}
+
+      {/* ═══════════ DOCUMENTS & DOWNLOADS ═══════════ */}
+      {subTab === "docs" && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-stone-700 uppercase tracking-wider">Documents & Downloads</h3>
+            <button className="glass-btn-3d px-4 py-2 text-xs font-bold uppercase tracking-wider gap-1.5 flex items-center" onClick={() => setDocuments([...documents, { title: "", description: "", fileUrl: "", fileType: "pdf", fileSize: "", category: "general" }])}>
+              <Plus size={13} className="text-amber-600" /> Add Document
+            </button>
           </div>
-        ))}
+
+          {documents.length === 0 && (
+            <div className="text-center py-12 text-stone-400">
+              <FileText size={40} className="mx-auto mb-3 opacity-40" />
+              <p className="text-sm font-bold uppercase tracking-wider">No documents yet</p>
+              <p className="text-xs mt-1">Upload PDFs, Word docs, ZIPs, or any downloadable files</p>
+            </div>
+          )}
+
+          {documents.map((doc, i) => (
+            <div key={i} className="p-5 rounded-2xl border border-white/50 bg-white/20 shadow-sm relative group">
+              <button className="absolute right-4 top-4 p-2 text-red-500 hover:bg-red-500/10 rounded-full transition-colors opacity-60 group-hover:opacity-100"
+                onClick={() => { if (window.confirm("Delete this document?")) setDocuments(documents.filter((_, idx) => idx !== i)); }}>
+                <Trash2 size={15} />
+              </button>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Title *</label>
+                  <input className={glassInputClass} placeholder="Document title" value={doc.title} onChange={e => {
+                    const c = [...documents]; c[i] = { ...c[i], title: e.target.value }; setDocuments(c);
+                  }} />
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">File Type</label>
+                  <select className="bg-white/40 border border-white/60 rounded-full px-5 py-3 text-sm focus:outline-none focus:border-amber-500 text-stone-800 w-full" value={doc.fileType || "pdf"} onChange={e => {
+                    const c = [...documents]; c[i] = { ...c[i], fileType: e.target.value }; setDocuments(c);
+                  }}>
+                    <option value="pdf">PDF</option>
+                    <option value="doc">Word (DOC/DOCX)</option>
+                    <option value="xls">Excel (XLS/XLSX)</option>
+                    <option value="zip">ZIP Archive</option>
+                    <option value="ppt">PowerPoint</option>
+                    <option value="txt">Text File</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Category</label>
+                  <input className={glassInputClass} placeholder="e.g. Resume, Project Files" value={doc.category || ""} onChange={e => {
+                    const c = [...documents]; c[i] = { ...c[i], category: e.target.value }; setDocuments(c);
+                  }} />
+                </div>
+              </div>
+
+              <div className="mt-3">
+                <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Description</label>
+                <input className={glassInputClass} placeholder="Brief description" value={doc.description || ""} onChange={e => {
+                  const c = [...documents]; c[i] = { ...c[i], description: e.target.value }; setDocuments(c);
+                }} />
+              </div>
+
+              <div className="mt-3">
+                <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">File URL / Upload</label>
+                <input className={glassInputClass} placeholder="Paste URL or upload below" value={doc.fileUrl} onChange={e => {
+                  const c = [...documents]; c[i] = { ...c[i], fileUrl: e.target.value }; setDocuments(c);
+                }} />
+                <div className="mt-2">
+                  <FileUploader label="Upload Document" allowedTypes="application/pdf,.doc,.docx,.xls,.xlsx,.zip,.ppt,.pptx,.txt,*" folder="documents" onUploadSuccess={(url) => {
+                    const c = [...documents]; c[i] = { ...c[i], fileUrl: url }; setDocuments(c);
+                  }} />
+                </div>
+                {doc.fileUrl && (
+                  <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-2 text-xs text-amber-600 hover:text-amber-500 font-bold uppercase tracking-wider">
+                    <FileText size={13} /> Download {doc.fileType?.toUpperCase()} ↗
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ═══════════ LINKS ═══════════ */}
+      {subTab === "links" && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-stone-700 uppercase tracking-wider">Custom Links</h3>
+            <button className="glass-btn-3d px-4 py-2 text-xs font-bold uppercase tracking-wider gap-1.5 flex items-center" onClick={() => setCustomLinks([...customLinks, { label: "", url: "", type: "external", category: "" }])}>
+              <Plus size={13} className="text-amber-600" /> Add Link
+            </button>
+          </div>
+
+          {customLinks.length === 0 && (
+            <div className="text-center py-12 text-stone-400">
+              <LinkIcon size={40} className="mx-auto mb-3 opacity-40" />
+              <p className="text-sm font-bold uppercase tracking-wider">No links yet</p>
+              <p className="text-xs mt-1">Add YouTube, Google Drive, Dropbox, or any external links</p>
+            </div>
+          )}
+
+          {customLinks.map((lnk, i) => (
+            <div key={i} className="p-4 rounded-2xl border border-white/50 bg-white/20 shadow-sm relative group">
+              <button className="absolute right-3 top-3 p-2 text-red-500 hover:bg-red-500/10 rounded-full transition-colors opacity-60 group-hover:opacity-100"
+                onClick={() => setCustomLinks(customLinks.filter((_, idx) => idx !== i))}>
+                <Trash2 size={14} />
+              </button>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1 block">Label *</label>
+                  <input className={glassInputClass} placeholder="My Portfolio" value={lnk.label} onChange={e => {
+                    const c = [...customLinks]; c[i] = { ...c[i], label: e.target.value }; setCustomLinks(c);
+                  }} />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1 block">URL *</label>
+                  <input className={glassInputClass} placeholder="https://..." value={lnk.url} onChange={e => {
+                    const c = [...customLinks]; c[i] = { ...c[i], url: e.target.value }; setCustomLinks(c);
+                  }} />
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1 block">Type</label>
+                  <select className="bg-white/40 border border-white/60 rounded-full px-5 py-3 text-sm focus:outline-none focus:border-amber-500 text-stone-800 w-full" value={lnk.type || "external"} onChange={e => {
+                    const c = [...customLinks]; c[i] = { ...c[i], type: e.target.value }; setCustomLinks(c);
+                  }}>
+                    <option value="external">🌐 External</option>
+                    <option value="youtube">▶️ YouTube</option>
+                    <option value="drive">📁 Google Drive</option>
+                    <option value="dropbox">📦 Dropbox</option>
+                    <option value="internal">🏠 Internal</option>
+                    <option value="documentation">📖 Documentation</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* YouTube embed preview for YouTube-type links */}
+              {lnk.type === "youtube" && lnk.url && getYouTubeId(lnk.url) && (
+                <div className="mt-3 rounded-xl overflow-hidden border border-stone-200 max-w-md">
+                  <iframe src={`https://www.youtube.com/embed/${getYouTubeId(lnk.url)}`} className="w-full aspect-video" allowFullScreen title={lnk.label} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Bottom save bar */}
+      <div className="pt-4 border-t border-stone-200">
+        <button
+          className="glass-btn-3d w-full py-4 text-xs font-bold uppercase tracking-widest gap-2 flex items-center justify-center shadow-md disabled:opacity-50"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          <Save size={15} className="text-amber-600" />
+          {saving ? "Saving all media..." : "Save All Content to Firebase"}
+        </button>
       </div>
     </div>
   );
