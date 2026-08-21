@@ -1,28 +1,48 @@
+# Python
 __pycache__/
 *.pyc
-.env
 *.db
-*.json
-ngrok
-ngrok.exe
-ngrok.zip
+
+# Secrets
+.env
+
+# Logs
 *.log
-logs
-node_modules
-dist
-dist-ssr
+logs/
+
+# Node
+node_modules/
+dist/
+dist-ssr/
 *.local
+
+# IDE
 .vscode/*
-.idea
+!.vscode/extensions.json
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# OS
+Thumbs.db
+
+# Project-specific generated files
 social_state.json
 daily_social_report.md
+
+# Ngrok
+ngrok
+ngrok.exe
+ngrok.zip
+
+# Git
 .git-rewrite
+
+# Test files (Python)
 test_models.py
 test_raw.py
 test_providers.py

@@ -146,7 +146,15 @@ export const CVProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const saveToFirestore = async () => {
-    await setDoc(doc(db, CV_DOC_PATH), cv);
+    try {
+      await setDoc(doc(db, CV_DOC_PATH), cv);
+    } catch (e: any) {
+      const code = e?.code || "";
+      if (code.includes("permission-denied")) {
+        throw new Error("Permission denied. Make sure you are logged in with a Firebase admin account and your Firestore rules allow writes.");
+      }
+      throw e;
+    }
   };
 
   return (

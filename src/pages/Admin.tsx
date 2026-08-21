@@ -20,16 +20,15 @@ const tabs: { key: Tab; label: string; icon: React.ElementType }[] = [
   { key: "settings", label: "Settings", icon: Settings },
 ];
 
-const ADMIN_EMAIL = "davood123@gmail.com";
-const ADMIN_PASS = "davood123";
+// Admin email can be configured via env var for convenience (pre-fill only)
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || "";
 
 const Admin = () => {
   const { user, loading, isAdmin, login, loginWithGoogle, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("cv");
-  const [loginEmail, setLoginEmail] = useState("");
+  const [loginEmail, setLoginEmail] = useState(ADMIN_EMAIL);
   const [loginPass, setLoginPass] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
-  const [hardcodedAdmin, setHardcodedAdmin] = useState(false);
   const cursorGlowRef = useRef<HTMLDivElement>(null);
 
   const handleLogin = async () => {
@@ -39,21 +38,14 @@ const Admin = () => {
     }
     setLoginLoading(true);
     try {
-      // Check hardcoded admin first — no Firebase needed
-      if (loginEmail.trim().toLowerCase() === ADMIN_EMAIL && loginPass === ADMIN_PASS) {
-        setHardcodedAdmin(true);
-        toast.success("Welcome back, Admin!");
-        setLoginLoading(false);
-        return;
-      }
-      // Otherwise try Firebase Auth
-      await login(loginEmail, loginPass);
+      // Always use Firebase Auth — required for Firestore access
+      await login(loginEmail.trim(), loginPass);
       toast.success("Logged in successfully!");
     } catch (e: any) {
       const code = e?.code || "";
       let message = "Login failed. Please try again.";
       if (code.includes("user-not-found") || code.includes("invalid-credential")) {
-        message = "Invalid email or password.";
+        message = "Invalid email or password. Make sure you have a Firebase Auth account.";
       } else if (code.includes("wrong-password")) {
         message = "Incorrect password.";
       } else if (code.includes("too-many-requests")) {
@@ -115,7 +107,7 @@ const Admin = () => {
       />
 
       <div className="relative z-20 pt-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
-        {!user && !hardcodedAdmin ? (
+        {!user ? (
           <div className="max-w-md mx-auto py-16 animate-fade-in">
             <div className="glass-card rounded-3xl border border-white/50 p-10 space-y-6 hover:shadow-amber-500/5 transition-all duration-500">
               <div className="text-center">
@@ -172,7 +164,7 @@ const Admin = () => {
                 <h1 className="text-3xl md:text-4xl font-heading font-black text-gradient tracking-tight">Dashboard</h1>
                 <p className="text-xs text-stone-500 mt-1 uppercase font-bold tracking-widest">Manage your portfolio</p>
               </div>
-              <button className="glass-btn-3d px-5 py-2.5 text-xs font-bold uppercase tracking-wider gap-2 flex items-center shadow-md" onClick={() => { setHardcodedAdmin(false); logout(); toast.success("Logged out"); }}>
+              <button className="glass-btn-3d px-5 py-2.5 text-xs font-bold uppercase tracking-wider gap-2 flex items-center shadow-md" onClick={() => { logout(); toast.success("Logged out"); }}>
                 <LogOut size={14} className="text-amber-600" /> Logout
               </button>
             </div>
