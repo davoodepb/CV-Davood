@@ -7,6 +7,8 @@ import { useCV } from "@/contexts/CVContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShop, Product } from "@/contexts/ShopContext";
 import { FileUploader } from "@/components/FileUploader";
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, serverTimestamp, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import gsap from "gsap";
 
 type Tab = "cv" | "social" | "products" | "messages" | "media" | "settings";
@@ -20,11 +22,12 @@ const tabs: { key: Tab; label: string; icon: React.ElementType }[] = [
   { key: "settings", label: "Settings", icon: Settings },
 ];
 
-// Admin email can be configured via env var for convenience (pre-fill only)
-const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || "";
+// Keep the login form usable when the deployment has not set VITE_ADMIN_EMAIL.
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || "davood00351@gmail.com";
 
 const Admin = () => {
-  const { user, loading, isAdmin, login, loginWithGoogle, logout } = useAuth();
+  const { user, loading: authLoading, isAdmin, login, loginWithGoogle, logout } = useAuth();
+  const { cv, loading: cvLoading } = useCV();
   const [activeTab, setActiveTab] = useState<Tab>("cv");
   const [loginEmail, setLoginEmail] = useState(ADMIN_EMAIL);
   const [loginPass, setLoginPass] = useState("");
@@ -88,7 +91,7 @@ const Admin = () => {
     return () => window.removeEventListener("mousemove", moveCursor);
   }, []);
 
-  if (loading) {
+  if (authLoading || (user && isAdmin && cvLoading)) {
     return (
       <div className="min-h-screen bg-transparent flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full" />
@@ -150,10 +153,22 @@ const Admin = () => {
                   <svg className="w-4 h-4" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
                   Sign in with Google
                 </button>
-                {user && !isAdmin && (
-                  <p className="text-xs font-bold text-center text-red-500 uppercase tracking-wider">You are logged in but not authorized as admin.</p>
-                )}
               </div>
+            </div>
+          </div>
+        ) : !isAdmin ? (
+          <div className="max-w-md mx-auto py-16 animate-fade-in">
+            <div className="glass-card rounded-3xl border border-white/50 p-10 space-y-6 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto shadow-lg shadow-red-500/10">
+                <LogIn size={28} className="text-red-500" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-heading font-black text-stone-900">Admin access required</h1>
+                <p className="text-sm text-stone-600 mt-2">This Firebase account is signed in but is not an approved administrator.</p>
+              </div>
+              <button className="glass-btn-3d w-full py-4 text-xs font-bold uppercase tracking-wider gap-2 flex items-center justify-center shadow-md" onClick={() => { logout(); toast.success("Logged out"); }}>
+                <LogOut size={15} className="text-amber-600" /> Sign out
+              </button>
             </div>
           </div>
         ) : (
@@ -227,7 +242,7 @@ const Admin = () => {
 };
 
 const CVPanel = () => {
-  const { cv, updateCV, saveToFirestore } = useCV();
+  const { cv, saveToFirestore } = useCV();
   const [name, setName] = useState(cv.name);
   const [title, setTitle] = useState(cv.title);
   const [about, setAbout] = useState(cv.about);
@@ -244,12 +259,11 @@ const CVPanel = () => {
   const [languages, setLanguages] = useState(cv.languages);
 
   const handleSave = async () => {
-    updateCV({ name, title, about, phone, email, address, location, dob, profileImage, education, experience, technicalSkills, creativeSkills, languages });
     try {
-      await saveToFirestore();
+      await saveToFirestore({ name, title, about, phone, email, address, location, dob, profileImage, education, experience, technicalSkills, creativeSkills, languages });
       toast.success("CV saved to Firebase! Changes are live.");
-    } catch {
-      toast.success("CV updated locally.");
+    } catch (e: any) {
+      toast.error(e?.message || "CV could not be saved to Firebase.");
     }
   };
 
@@ -475,7 +489,7 @@ const CVPanel = () => {
 };
 
 const SocialPanel = () => {
-  const { cv, updateCV, saveToFirestore } = useCV();
+  const { cv, saveToFirestore } = useCV();
   const [github, setGithub] = useState(cv.socialLinks?.github || "");
   const [linkedin, setLinkedin] = useState(cv.socialLinks?.linkedin || "");
   const [instagram, setInstagram] = useState(cv.socialLinks?.instagram || "");
@@ -483,12 +497,11 @@ const SocialPanel = () => {
   const [tiktok, setTiktok] = useState(cv.socialLinks?.tiktok || "");
 
   const handleSave = async () => {
-    updateCV({ socialLinks: { github, linkedin, instagram, whatsapp, tiktok } });
     try {
-      await saveToFirestore();
+      await saveToFirestore({ socialLinks: { github, linkedin, instagram, whatsapp, tiktok } });
       toast.success("Social links saved!");
-    } catch {
-      toast.success("Social links updated locally.");
+    } catch (e: any) {
+      toast.error(e?.message || "Social links could not be saved to Firebase.");
     }
   };
 
@@ -526,31 +539,63 @@ const ProductsPanel = () => {
 
   const handleAdd = async () => {
     if (!newTitle || !newPrice) return toast.error("Title and price required");
-    await addProduct({
-      title: newTitle,
-      description: newDesc,
-      price: parseFloat(newPrice),
-      category: newCat || "courses",
-      image: newImage || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=250&fit=crop",
-    });
-    setNewTitle(""); setNewDesc(""); setNewPrice(""); setNewCat(""); setNewImage("");
-    setShowAdd(false);
-    toast.success("Product added!");
+    try {
+      await addProduct({
+        title: newTitle,
+        description: newDesc,
+        price: parseFloat(newPrice),
+        category: newCat || "courses",
+        image: newImage || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=250&fit=crop",
+      });
+      setNewTitle(""); setNewDesc(""); setNewPrice(""); setNewCat(""); setNewImage("");
+      setShowAdd(false);
+      toast.success("Product added!");
+    } catch (e: any) {
+      toast.error(e?.message || "Product could not be saved.");
+    }
   };
 
   const handleAddCat = async () => {
     if (!newCatKey || !newCatLabel) return toast.error("Key and label required");
-    await addCategory(newCatKey.toLowerCase().replace(/\s+/g, "-"), newCatLabel);
-    setNewCatKey(""); setNewCatLabel("");
-    setShowAddCat(false);
-    toast.success("Category added!");
+    try {
+      await addCategory(newCatKey.toLowerCase().replace(/\s+/g, "-"), newCatLabel);
+      setNewCatKey(""); setNewCatLabel("");
+      setShowAddCat(false);
+      toast.success("Category added!");
+    } catch (e: any) {
+      toast.error(e?.message || "Category could not be saved.");
+    }
   };
 
   const handleSaveEdit = async (id: string) => {
-    await updateProduct(id, editData);
-    setEditId(null);
-    setEditData({});
-    toast.success("Product updated!");
+    try {
+      await updateProduct(id, editData);
+      setEditId(null);
+      setEditData({});
+      toast.success("Product updated!");
+    } catch (e: any) {
+      toast.error(e?.message || "Product could not be updated.");
+    }
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    if (!window.confirm("Delete this product?")) return;
+    try {
+      await deleteProduct(id);
+      toast.success("Product removed!");
+    } catch (e: any) {
+      toast.error(e?.message || "Product could not be removed.");
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!window.confirm("Delete this category?")) return;
+    try {
+      await deleteCategory(id);
+      toast.success("Category removed");
+    } catch (e: any) {
+      toast.error(e?.message || "Category could not be removed.");
+    }
   };
 
   const glassInputClass = "w-full bg-white/40 border border-white/60 rounded-full px-5 py-3 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 placeholder:text-stone-400 text-stone-850 transition-all duration-300";
@@ -575,7 +620,7 @@ const ProductsPanel = () => {
         {categories.map(c => (
           <span key={c.id} className="text-[10px] uppercase font-bold tracking-widest text-amber-700 bg-amber-500/10 px-3 py-1 border border-amber-500/20 rounded-full flex items-center gap-1.5 shadow-sm">
             {c.label}
-            <button onClick={() => { deleteCategory(c.id); toast.success("Category removed"); }} className="ml-1 text-red-500 hover:text-red-650 font-black text-xs">×</button>
+            <button onClick={() => handleDeleteCategory(c.id)} className="ml-1 text-red-500 hover:text-red-650 font-black text-xs">×</button>
           </span>
         ))}
       </div>
@@ -636,7 +681,7 @@ const ProductsPanel = () => {
                 <div className="flex items-center gap-4">
                   <span className="text-sm font-black text-amber-600">${p.price}</span>
                   <button className="p-2 text-amber-600 hover:text-amber-500 hover:bg-white/40 rounded-full transition-all duration-300" onClick={() => { setEditId(p.id); setEditData({}); }}><Pencil size={15} /></button>
-                  <button className="p-2 text-red-500 hover:text-red-655 hover:bg-red-500/10 rounded-full transition-all duration-300" onClick={() => { deleteProduct(p.id); toast.success("Product removed!"); }}><Trash2 size={15} /></button>
+                   <button className="p-2 text-red-500 hover:text-red-655 hover:bg-red-500/10 rounded-full transition-all duration-300" onClick={() => handleDeleteProduct(p.id)}><Trash2 size={15} /></button>
                 </div>
               </div>
             )}
@@ -655,30 +700,22 @@ const MessagesPanel = () => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const loadChats = async () => {
-      const { collection: col, query: q, orderBy: ob, onSnapshot: snap } = await import("firebase/firestore");
-      const { db: fireDb } = await import("@/lib/firebase");
-      const chatsQuery = q(col(fireDb, "chats"), ob("lastMessageAt", "desc"));
-      return snap(chatsQuery, (snapshot) => {
-        setChats(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any)));
-      });
-    };
-    const unsub = loadChats();
-    return () => { unsub.then(u => u()); };
+    const chatsQuery = query(collection(db, "chats"), orderBy("lastMessageAt", "desc"));
+    return onSnapshot(
+      chatsQuery,
+      (snapshot) => setChats(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any))),
+      () => toast.error("Messages could not be loaded. Check Firestore rules.")
+    );
   }, []);
 
   useEffect(() => {
     if (!selectedChat) return;
-    const loadMessages = async () => {
-      const { collection: col, query: q, orderBy: ob, onSnapshot: snap } = await import("firebase/firestore");
-      const { db: fireDb } = await import("@/lib/firebase");
-      const msgsQuery = q(col(fireDb, "chats", selectedChat, "messages"), ob("createdAt", "asc"));
-      return snap(msgsQuery, (snapshot) => {
-        setChatMessages(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any)));
-      });
-    };
-    const unsub = loadMessages();
-    return () => { unsub.then(u => u()); };
+    const msgsQuery = query(collection(db, "chats", selectedChat, "messages"), orderBy("createdAt", "asc"));
+    return onSnapshot(
+      msgsQuery,
+      (snapshot) => setChatMessages(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any))),
+      () => toast.error("Conversation messages could not be loaded.")
+    );
   }, [selectedChat]);
 
   useEffect(() => {
@@ -687,20 +724,23 @@ const MessagesPanel = () => {
 
   const sendReply = async () => {
     if (!reply.trim() || !selectedChat) return;
-    const { addDoc, collection: col, serverTimestamp, doc: docRef, updateDoc } = await import("firebase/firestore");
-    const { db: fireDb } = await import("@/lib/firebase");
-    await addDoc(col(fireDb, "chats", selectedChat, "messages"), {
-      text: reply.trim(),
-      sender: "admin",
-      visitorId: selectedChat,
-      createdAt: serverTimestamp(),
-    });
-    await updateDoc(docRef(fireDb, "chats", selectedChat), {
-      lastMessage: reply.trim(),
-      lastMessageAt: serverTimestamp(),
-      unread: false,
-    });
-    setReply("");
+    try {
+      const text = reply.trim();
+      await addDoc(collection(db, "chats", selectedChat, "messages"), {
+        text,
+        sender: "admin",
+        visitorId: selectedChat,
+        createdAt: serverTimestamp(),
+      });
+      await updateDoc(doc(db, "chats", selectedChat), {
+        lastMessage: text,
+        lastMessageAt: serverTimestamp(),
+        unread: false,
+      });
+      setReply("");
+    } catch (e: any) {
+      toast.error(e?.message || "Reply could not be sent.");
+    }
   };
 
   const formatTime = (ts: any) => {
@@ -780,7 +820,7 @@ const SettingsPanel = () => (
 );
 
 const MediaPanel = () => {
-  const { cv, updateCV, saveToFirestore } = useCV();
+  const { cv, saveToFirestore } = useCV();
   const [customLinks, setCustomLinks] = useState(cv.customLinks || []);
   const [certificates, setCertificates] = useState(cv.certificates || []);
   const [gallery, setGallery] = useState(cv.gallery || []);
@@ -791,12 +831,11 @@ const MediaPanel = () => {
 
   const handleSave = async () => {
     setSaving(true);
-    updateCV({ customLinks, certificates, gallery, videos, documents });
     try {
-      await saveToFirestore();
+      await saveToFirestore({ customLinks, certificates, gallery, videos, documents });
       toast.success("All media saved to Firebase!");
-    } catch {
-      toast.success("Media updated locally.");
+    } catch (e: any) {
+      toast.error(e?.message || "Media could not be saved to Firebase.");
     } finally {
       setSaving(false);
     }
@@ -1321,3 +1360,4 @@ const MediaPanel = () => {
 };
 
 export default Admin;
+

@@ -1,0 +1,63 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && (
+        request.auth.token.email == 'davood00351@gmail.com' ||
+        (
+          exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.isAdmin == true
+        )
+      );
+    }
+
+    match /settings/cv {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /admins/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow write: if isAdmin();
+    }
+
+    match /chats/{visitorId} {
+      allow read: if isAdmin();
+      allow create: if request.resource.data.visitorId == visitorId;
+      allow update: if isAdmin() || request.resource.data.visitorId == visitorId;
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        // The current visitor flow uses a browser-generated visitor id.
+        // Keep visitor history readable until the flow uses anonymous Auth.
+        allow read: if true;
+        allow create: if isAdmin() || (
+          request.resource.data.sender == 'visitor' &&
+          request.resource.data.visitorId == visitorId &&
+          request.resource.data.text is string
+        );
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

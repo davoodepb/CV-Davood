@@ -108,11 +108,30 @@ const CV_DOC_PATH = "settings/cv";
 interface CVContextType {
   cv: CVData;
   updateCV: (updates: Partial<CVData>) => void;
-  saveToFirestore: () => Promise<void>;
+  saveToFirestore: (updates?: Partial<CVData>) => Promise<void>;
   loading: boolean;
 }
 
 const CVContext = createContext<CVContextType | undefined>(undefined);
+
+const mergeCVData = (data: Partial<CVData>): CVData => ({
+  ...defaultCV,
+  ...data,
+  socialLinks: {
+    ...defaultCV.socialLinks,
+    ...(data.socialLinks || {}),
+  },
+  education: Array.isArray(data.education) ? data.education : defaultCV.education,
+  experience: Array.isArray(data.experience) ? data.experience : defaultCV.experience,
+  technicalSkills: Array.isArray(data.technicalSkills) ? data.technicalSkills : defaultCV.technicalSkills,
+  creativeSkills: Array.isArray(data.creativeSkills) ? data.creativeSkills : defaultCV.creativeSkills,
+  languages: Array.isArray(data.languages) ? data.languages : defaultCV.languages,
+  customLinks: Array.isArray(data.customLinks) ? data.customLinks : defaultCV.customLinks,
+  certificates: Array.isArray(data.certificates) ? data.certificates : defaultCV.certificates,
+  gallery: Array.isArray(data.gallery) ? data.gallery : defaultCV.gallery,
+  videos: Array.isArray(data.videos) ? data.videos : defaultCV.videos,
+  documents: Array.isArray(data.documents) ? data.documents : defaultCV.documents,
+});
 
 export const CVProvider = ({ children }: { children: ReactNode }) => {
   const [cv, setCV] = useState<CVData>(defaultCV);
@@ -123,10 +142,10 @@ export const CVProvider = ({ children }: { children: ReactNode }) => {
       try {
         const snap = await getDoc(doc(db, CV_DOC_PATH));
         if (snap.exists()) {
-          setCV({ ...defaultCV, ...snap.data() } as CVData);
+          setCV(mergeCVData(snap.data() as Partial<CVData>));
         }
       } catch (e) {
-        console.log("Using default CV data (Firestore not available yet)");
+        console.error("Failed to load CV data from Firestore", e);
       } finally {
         setLoading(false);
       }
@@ -135,19 +154,14 @@ export const CVProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const updateCV = (updates: Partial<CVData>) => {
-    setCV((prev) => {
-      const updated = { ...prev, ...updates };
-      // Auto-save to Firestore
-      setDoc(doc(db, CV_DOC_PATH), updated).catch(() => {
-        console.log("Auto-save to Firestore failed, data saved locally");
-      });
-      return updated;
-    });
+    setCV((prev) => mergeCVData({ ...prev, ...updates }));
   };
 
-  const saveToFirestore = async () => {
+  const saveToFirestore = async (updates: Partial<CVData> = {}) => {
+    const nextCV = mergeCVData({ ...cv, ...updates });
     try {
-      await setDoc(doc(db, CV_DOC_PATH), cv);
+      await setDoc(doc(db, CV_DOC_PATH), nextCV);
+      setCV(nextCV);
     } catch (e: any) {
       const code = e?.code || "";
       if (code.includes("permission-denied")) {
@@ -169,3 +183,4 @@ export const useCV = () => {
   if (!ctx) throw new Error("useCV must be used within CVProvider");
   return ctx;
 };
+

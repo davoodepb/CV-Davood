@@ -22,8 +22,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    // Admin email fallback — works even without Firestore admins collection
-    const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || "";
+    // Keep the configured email as a bootstrap fallback. Firestore rules must
+    // enforce the same administrator policy on every write.
+    const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL || "davood00351@gmail.com").trim().toLowerCase();
 
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
@@ -33,7 +34,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const adminDoc = await getDoc(doc(db, "admins", u.uid));
           if (adminDoc.exists() && adminDoc.data()?.isAdmin === true) {
             setIsAdmin(true);
-          } else if (adminEmail && u.email?.toLowerCase() === adminEmail.toLowerCase()) {
+          } else if (u.email?.toLowerCase() === adminEmail) {
             // Fallback: check against configured admin email
             setIsAdmin(true);
           } else {
@@ -41,7 +42,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         } catch {
           // If Firestore is unreachable, fall back to email check
-          if (adminEmail && u.email?.toLowerCase() === adminEmail.toLowerCase()) {
+          if (u.email?.toLowerCase() === adminEmail) {
             setIsAdmin(true);
           } else {
             setIsAdmin(false);
@@ -79,3 +80,4 @@ export const useAuth = () => {
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 };
+

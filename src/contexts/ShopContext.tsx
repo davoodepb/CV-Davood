@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, addDoc, setDoc, deleteDoc, doc } from "firebase/firestore";
 
 export interface Product {
   id: string;
@@ -66,8 +66,8 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
         if (!catSnap.empty) {
           setCategories(catSnap.docs.map(d => ({ id: d.id, ...d.data() } as ShopCategory)));
         }
-      } catch {
-        console.log("Using default shop data");
+      } catch (e) {
+        console.error("Failed to load shop data from Firestore", e);
       } finally {
         setLoading(false);
       }
@@ -76,48 +76,29 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const addProduct = async (p: Omit<Product, "id">) => {
-    try {
-      const ref = await addDoc(collection(db, "products"), p);
-      setProducts(prev => [...prev, { ...p, id: ref.id }]);
-    } catch {
-      const id = "local-" + Date.now();
-      setProducts(prev => [...prev, { ...p, id }]);
-    }
+    const ref = await addDoc(collection(db, "products"), p);
+    setProducts(prev => [...prev, { ...p, id: ref.id }]);
   };
 
   const updateProduct = async (id: string, updates: Partial<Product>) => {
-    try {
-      if (!id.startsWith("local-")) {
-        await updateDoc(doc(db, "products", id), updates);
-      }
-    } catch {}
+    const current = products.find(p => p.id === id);
+    const { id: _id, ...nextProduct } = { ...current, ...updates, id } as Product;
+    await setDoc(doc(db, "products", id), nextProduct, { merge: true });
     setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
   };
 
   const deleteProduct = async (id: string) => {
-    try {
-      if (!id.startsWith("local-")) {
-        await deleteDoc(doc(db, "products", id));
-      }
-    } catch {}
+    await deleteDoc(doc(db, "products", id));
     setProducts(prev => prev.filter(p => p.id !== id));
   };
 
   const addCategory = async (key: string, label: string) => {
-    try {
-      const ref = await addDoc(collection(db, "categories"), { key, label });
-      setCategories(prev => [...prev, { id: ref.id, key, label }]);
-    } catch {
-      setCategories(prev => [...prev, { id: "local-" + Date.now(), key, label }]);
-    }
+    const ref = await addDoc(collection(db, "categories"), { key, label });
+    setCategories(prev => [...prev, { id: ref.id, key, label }]);
   };
 
   const deleteCategory = async (id: string) => {
-    try {
-      if (!id.startsWith("local-") && !id.startsWith("cat-")) {
-        await deleteDoc(doc(db, "categories", id));
-      }
-    } catch {}
+    await deleteDoc(doc(db, "categories", id));
     setCategories(prev => prev.filter(c => c.id !== id));
   };
 
@@ -133,3 +114,4 @@ export const useShop = () => {
   if (!ctx) throw new Error("useShop must be used within ShopProvider");
   return ctx;
 };
+
