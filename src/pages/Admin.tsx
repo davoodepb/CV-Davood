@@ -495,30 +495,63 @@ const SocialPanel = () => {
   const [instagram, setInstagram] = useState(cv.socialLinks?.instagram || "");
   const [whatsapp, setWhatsapp] = useState(cv.socialLinks?.whatsapp || "");
   const [tiktok, setTiktok] = useState(cv.socialLinks?.tiktok || "");
+  const [twitter, setTwitter] = useState(cv.socialLinks?.twitter || "");
+  const [facebook, setFacebook] = useState(cv.socialLinks?.facebook || "");
+  const [youtube, setYoutube] = useState(cv.socialLinks?.youtube || "");
+  const [spotify, setSpotify] = useState(cv.socialLinks?.spotify || "");
+  const [website, setWebsite] = useState(cv.socialLinks?.website || "");
+  const [zerozero, setZerozero] = useState(cv.socialLinks?.zerozero || "");
+  const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
+    setSaving(true);
     try {
-      await saveToFirestore({ socialLinks: { github, linkedin, instagram, whatsapp, tiktok } });
+      await saveToFirestore({ socialLinks: { github, linkedin, instagram, whatsapp, tiktok, twitter, facebook, youtube, spotify, website, zerozero } });
       toast.success("Social links saved!");
     } catch (e: any) {
       toast.error(e?.message || "Social links could not be saved to Firebase.");
+    } finally {
+      setSaving(false);
     }
   };
 
   const glassInputClass = "w-full bg-white/40 border border-white/60 rounded-full px-5 py-3 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 placeholder:text-stone-400 text-stone-850 transition-all duration-300";
 
+  const socialFields = [
+    { label: "GitHub", value: github, set: setGithub, placeholder: "https://github.com/username", emoji: "🐙" },
+    { label: "LinkedIn", value: linkedin, set: setLinkedin, placeholder: "https://linkedin.com/in/username", emoji: "💼" },
+    { label: "Instagram", value: instagram, set: setInstagram, placeholder: "https://instagram.com/username", emoji: "📸" },
+    { label: "WhatsApp", value: whatsapp, set: setWhatsapp, placeholder: "https://wa.me/351000000000", emoji: "💬" },
+    { label: "TikTok", value: tiktok, set: setTiktok, placeholder: "https://tiktok.com/@username", emoji: "🎵" },
+    { label: "Twitter / X", value: twitter, set: setTwitter, placeholder: "https://x.com/username", emoji: "🐦" },
+    { label: "Facebook", value: facebook, set: setFacebook, placeholder: "https://facebook.com/username", emoji: "📘" },
+    { label: "YouTube", value: youtube, set: setYoutube, placeholder: "https://youtube.com/@channel", emoji: "🎬" },
+    { label: "Spotify", value: spotify, set: setSpotify, placeholder: "https://open.spotify.com/user/...", emoji: "🎧" },
+    { label: "Website", value: website, set: setWebsite, placeholder: "https://yourwebsite.com", emoji: "🌐" },
+    { label: "ZeroZero", value: zerozero, set: setZerozero, placeholder: "https://www.zerozero.pt/jogador/...", emoji: "⚽" },
+  ];
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-heading font-black text-stone-900 border-b border-stone-200 pb-4">Social Links</h2>
-      <p className="text-sm text-stone-605">Add your social media URLs. They will appear on your CV page.</p>
-      <div className="space-y-4">
-        <div><label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">GitHub URL</label><input className={glassInputClass} value={github} onChange={(e) => setGithub(e.target.value)} placeholder="https://github.com/username" /></div>
-        <div><label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">LinkedIn URL</label><input className={glassInputClass} value={linkedin} onChange={(e) => setLinkedin(e.target.value)} placeholder="https://linkedin.com/in/username" /></div>
-        <div><label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">Instagram URL</label><input className={glassInputClass} value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="https://instagram.com/username" /></div>
-        <div><label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">WhatsApp Link</label><input className={glassInputClass} value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="https://wa.me/351927717490" /></div>
-        <div><label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">TikTok URL</label><input className={glassInputClass} value={tiktok} onChange={(e) => setTiktok(e.target.value)} placeholder="https://tiktok.com/@username" /></div>
+      <p className="text-sm text-stone-600">Add your social media URLs. They will appear on your CV page. Leave empty to hide.</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {socialFields.map((f) => (
+          <div key={f.label}>
+            <label className="text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5 block">
+              {f.emoji} {f.label}
+            </label>
+            <input className={glassInputClass} value={f.value} onChange={(e) => f.set(e.target.value)} placeholder={f.placeholder} />
+          </div>
+        ))}
       </div>
-      <button className="glass-btn-3d px-6 py-3 font-bold gap-2 flex items-center shadow-md" onClick={handleSave}><Save size={15} className="text-amber-600" /> Save Social Links</button>
+      <button
+        className="glass-btn-3d px-6 py-3 font-bold gap-2 flex items-center shadow-md disabled:opacity-50"
+        onClick={handleSave}
+        disabled={saving}
+      >
+        <Save size={15} className="text-amber-600" /> {saving ? "Saving..." : "Save Social Links"}
+      </button>
     </div>
   );
 };

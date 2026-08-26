@@ -96,7 +96,15 @@ export const FileUploader = ({
     uploadFile(file);
   };
 
-  const uploadFile = (file: File) => {
+  const toBase64DataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const uploadFile = async (file: File) => {
     setFileName(file.name);
     setFileSize(formatFileSize(file.size));
     setStatus("uploading");
@@ -114,28 +122,46 @@ export const FileUploader = ({
         );
         setProgress(percent);
       },
-      (error) => {
-        console.error("Upload error:", error);
+      async (error) => {
+        console.warn("Firebase Storage upload failed:", error.code, "— trying base64 fallback...");
+
+        // Base64 fallback for files up to 5MB when Storage is not available
+        const MAX_BASE64_SIZE = 5 * 1024 * 1024;
+        if (file.size <= MAX_BASE64_SIZE) {
+          try {
+            setProgress(50);
+            const dataUrl = await toBase64DataUrl(file);
+            setProgress(100);
+            setStatus("success");
+            setProgress(null);
+            onUploadSuccess(dataUrl);
+            toast.success(`${file.name} saved successfully! (stored inline)`);
+            setTimeout(() => {
+              setStatus("idle");
+              setFileName("");
+              setFileSize("");
+            }, 3000);
+            return;
+          } catch {
+            // base64 fallback also failed, show original error
+          }
+        }
+
         setStatus("error");
         setProgress(null);
 
-        // Parse Firebase Storage errors
         let message = "Upload failed. Please try again.";
         const code = error.code || "";
         if (code.includes("unauthorized") || code.includes("permission-denied")) {
-          message = "Permission denied. Check Firebase Storage rules (need auth:read, auth:write).";
+          message = "Permission denied. Check Firebase Storage rules.";
         } else if (code.includes("canceled")) {
           message = "Upload was canceled.";
         } else if (code.includes("quota-exceeded")) {
-          message = "Storage quota exceeded. Upgrade Firebase plan.";
-        } else if (code.includes("invalid-argument") || code.includes("invalid-format")) {
-          message = "Invalid file format. Try a different file.";
-        } else if (code.includes("not-found")) {
-          message = "Storage path not found. Check Firebase config.";
-        } else if (code.includes("network")) {
-          message = "Network error. Check your connection.";
-        } else if (error.message) {
-          message = `Upload error: ${error.message}`;
+          message = "Storage quota exceeded.";
+        } else if (file.size > MAX_BASE64_SIZE) {
+          message = `File too large for inline storage (${formatFileSize(file.size)}). Enable Firebase Storage or use a file under 5MB.`;
+        } else {
+          message = "Firebase Storage is not available. Please activate it in the Firebase Console.";
         }
 
         setErrorMsg(message);
@@ -149,7 +175,6 @@ export const FileUploader = ({
           onUploadSuccess(downloadUrl);
           toast.success(`${fileName} uploaded successfully!`);
 
-          // Reset status after 3 seconds
           setTimeout(() => {
             setStatus("idle");
             setFileName("");
@@ -157,8 +182,8 @@ export const FileUploader = ({
           }, 3000);
         } catch (e: any) {
           setStatus("error");
-          setErrorMsg("Failed to get download URL. Check Firebase Storage rules.");
-          toast.error("Failed to get download URL. Check Firebase Storage rules.");
+          setErrorMsg("Failed to get download URL.");
+          toast.error("Failed to get download URL.");
         }
       }
     );

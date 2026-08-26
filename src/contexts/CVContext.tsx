@@ -18,6 +18,12 @@ export interface CVData {
     instagram: string;
     whatsapp: string;
     tiktok: string;
+    twitter: string;
+    facebook: string;
+    youtube: string;
+    spotify: string;
+    website: string;
+    zerozero: string;
   };
   education: { period: string; degree: string; school: string; details: string[] }[];
   experience: { year: string; title: string; desc: string }[];
@@ -47,6 +53,12 @@ const defaultCV: CVData = {
     instagram: "",
     whatsapp: "https://wa.me/351927717490",
     tiktok: "",
+    twitter: "",
+    facebook: "",
+    youtube: "",
+    spotify: "",
+    website: "",
+    zerozero: "",
   },
   education: [
     {
