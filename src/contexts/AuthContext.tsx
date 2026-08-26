@@ -22,9 +22,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    // Keep the configured email as a bootstrap fallback. Firestore rules must
-    // enforce the same administrator policy on every write.
-    const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL || "davood00351@gmail.com").trim().toLowerCase();
+    // Known admin emails — Firestore `admins/{uid}` doc is the primary check,
+    // these serve as a bootstrap fallback when the doc doesn't exist yet.
+    const ADMIN_EMAILS = [
+      (import.meta.env.VITE_ADMIN_EMAIL || "").trim().toLowerCase(),
+      "davood123@gmail.com",
+      "davood00351@gmail.com",
+    ].filter(Boolean);
+
+    const isAdminEmail = (email: string | null) =>
+      !!email && ADMIN_EMAILS.includes(email.toLowerCase());
 
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
@@ -34,15 +41,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const adminDoc = await getDoc(doc(db, "admins", u.uid));
           if (adminDoc.exists() && adminDoc.data()?.isAdmin === true) {
             setIsAdmin(true);
-          } else if (u.email?.toLowerCase() === adminEmail) {
-            // Fallback: check against configured admin email
+          } else if (isAdminEmail(u.email)) {
+            // Fallback: check against configured admin emails
             setIsAdmin(true);
           } else {
             setIsAdmin(false);
           }
         } catch {
           // If Firestore is unreachable, fall back to email check
-          if (u.email?.toLowerCase() === adminEmail) {
+          if (isAdminEmail(u.email)) {
             setIsAdmin(true);
           } else {
             setIsAdmin(false);

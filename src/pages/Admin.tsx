@@ -22,8 +22,8 @@ const tabs: { key: Tab; label: string; icon: React.ElementType }[] = [
   { key: "settings", label: "Settings", icon: Settings },
 ];
 
-// Keep the login form usable when the deployment has not set VITE_ADMIN_EMAIL.
-const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || "davood00351@gmail.com";
+// Default admin email pre-fills the login form for convenience
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || "davood123@gmail.com";
 
 const Admin = () => {
   const { user, loading: authLoading, isAdmin, login, loginWithGoogle, logout } = useAuth();
