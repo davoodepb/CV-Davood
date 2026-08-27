@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { Upload, FileText, CheckCircle, AlertCircle, Loader2, X, Image, Video } from "lucide-react";
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { storage } from "@/lib/firebase";
 import { toast } from "sonner";
 
@@ -104,6 +104,23 @@ export const FileUploader = ({
       reader.readAsDataURL(file);
     });
 
+  const MAX_BASE64_SIZE = 5 * 1024 * 1024; // 5MB
+
+  // Quick check if Firebase Storage is reachable (5s timeout)
+  const isStorageAvailable = async (): Promise<boolean> => {
+    try {
+      const probeRef = ref(storage, `_probe_${Date.now()}.txt`);
+      const probeData = new Uint8Array([48]); // single byte
+      const result = await Promise.race([
+        uploadBytes(probeRef, probeData).then(() => true),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5000)),
+      ]);
+      return result;
+    } catch {
+      return false;
+    }
+  };
+
   const uploadFile = async (file: File) => {
     setFileName(file.name);
     setFileSize(formatFileSize(file.size));
@@ -111,6 +128,39 @@ export const FileUploader = ({
     setProgress(0);
     setErrorMsg("");
 
+    // Strategy: try Firebase Storage first with a quick probe.
+    // If Storage is unavailable, fall back to base64 data URL (up to 5MB).
+    const storageOk = await isStorageAvailable();
+
+    if (!storageOk) {
+      console.warn("Firebase Storage not available — using base64 fallback");
+      if (file.size > MAX_BASE64_SIZE) {
+        setStatus("error");
+        setProgress(null);
+        const msg = `File too large (${formatFileSize(file.size)}). Maximum 5MB without Firebase Storage. Activate Firebase Storage for larger files.`;
+        setErrorMsg(msg);
+        toast.error(msg);
+        return;
+      }
+      try {
+        setProgress(30);
+        const dataUrl = await toBase64DataUrl(file);
+        setProgress(100);
+        setStatus("success");
+        setProgress(null);
+        onUploadSuccess(dataUrl);
+        toast.success(`${file.name} saved successfully!`);
+        setTimeout(() => { setStatus("idle"); setFileName(""); setFileSize(""); }, 3000);
+      } catch {
+        setStatus("error");
+        setProgress(null);
+        setErrorMsg("Failed to read file.");
+        toast.error("Failed to read file.");
+      }
+      return;
+    }
+
+    // Firebase Storage is available — use resumable upload
     const storageRef = ref(storage, `${folder}/${Date.now()}_${file.name}`);
     const uploadTask = uploadBytesResumable(storageRef, file);
 
@@ -122,50 +172,15 @@ export const FileUploader = ({
         );
         setProgress(percent);
       },
-      async (error) => {
-        console.warn("Firebase Storage upload failed:", error.code, "— trying base64 fallback...");
-
-        // Base64 fallback for files up to 5MB when Storage is not available
-        const MAX_BASE64_SIZE = 5 * 1024 * 1024;
-        if (file.size <= MAX_BASE64_SIZE) {
-          try {
-            setProgress(50);
-            const dataUrl = await toBase64DataUrl(file);
-            setProgress(100);
-            setStatus("success");
-            setProgress(null);
-            onUploadSuccess(dataUrl);
-            toast.success(`${file.name} saved successfully! (stored inline)`);
-            setTimeout(() => {
-              setStatus("idle");
-              setFileName("");
-              setFileSize("");
-            }, 3000);
-            return;
-          } catch {
-            // base64 fallback also failed, show original error
-          }
-        }
-
+      (error) => {
+        console.error("Upload error:", error);
         setStatus("error");
         setProgress(null);
-
-        let message = "Upload failed. Please try again.";
-        const code = error.code || "";
-        if (code.includes("unauthorized") || code.includes("permission-denied")) {
-          message = "Permission denied. Check Firebase Storage rules.";
-        } else if (code.includes("canceled")) {
-          message = "Upload was canceled.";
-        } else if (code.includes("quota-exceeded")) {
-          message = "Storage quota exceeded.";
-        } else if (file.size > MAX_BASE64_SIZE) {
-          message = `File too large for inline storage (${formatFileSize(file.size)}). Enable Firebase Storage or use a file under 5MB.`;
-        } else {
-          message = "Firebase Storage is not available. Please activate it in the Firebase Console.";
-        }
-
-        setErrorMsg(message);
-        toast.error(message);
+        const msg = error.code?.includes("unauthorized")
+          ? "Permission denied. Check Firebase Storage rules."
+          : "Upload failed. Please try again.";
+        setErrorMsg(msg);
+        toast.error(msg);
       },
       async () => {
         try {
@@ -174,13 +189,8 @@ export const FileUploader = ({
           setProgress(null);
           onUploadSuccess(downloadUrl);
           toast.success(`${fileName} uploaded successfully!`);
-
-          setTimeout(() => {
-            setStatus("idle");
-            setFileName("");
-            setFileSize("");
-          }, 3000);
-        } catch (e: any) {
+          setTimeout(() => { setStatus("idle"); setFileName(""); setFileSize(""); }, 3000);
+        } catch {
           setStatus("error");
           setErrorMsg("Failed to get download URL.");
           toast.error("Failed to get download URL.");
