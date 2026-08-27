@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Download, Mail, Phone, MapPin, Calendar, Briefcase, GraduationCap, Globe, CheckCircle, Github, Linkedin, Instagram, MessageCircle } from "lucide-react";
+import { Download, Mail, Phone, MapPin, Calendar, Briefcase, GraduationCap, Globe, CheckCircle, Github, Linkedin, Instagram, MessageCircle, FileText } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import defaultProfileImg from "@/assets/profile.jpg";
@@ -206,6 +206,12 @@ const Index = () => {
     { key: "instagram", icon: Instagram, url: cv.socialLinks?.instagram, label: "Instagram" },
     { key: "whatsapp", icon: MessageCircle, url: cv.socialLinks?.whatsapp, label: "WhatsApp" },
     { key: "tiktok", icon: TikTokIcon, url: cv.socialLinks?.tiktok, label: "TikTok" },
+    { key: "twitter", icon: Globe, url: cv.socialLinks?.twitter, label: "Twitter / X" },
+    { key: "facebook", icon: Globe, url: cv.socialLinks?.facebook, label: "Facebook" },
+    { key: "youtube", icon: Globe, url: cv.socialLinks?.youtube, label: "YouTube" },
+    { key: "spotify", icon: Globe, url: cv.socialLinks?.spotify, label: "Spotify" },
+    { key: "website", icon: Globe, url: cv.socialLinks?.website, label: "Website" },
+    { key: "zerozero", icon: Globe, url: cv.socialLinks?.zerozero, label: "ZeroZero" },
   ].filter(l => l.url);
 
   const handleDownloadPDF = () => {
@@ -625,6 +631,49 @@ const Index = () => {
             </section>
           )}
 
+          {/* Documents & Downloads */}
+          {cv.documents && cv.documents.length > 0 && (
+            <section 
+              onMouseMove={handleCardMouseMove}
+              onMouseLeave={handleCardMouseLeave}
+              className="glass-card reveal-section p-8 md:p-10 transition-all duration-300 border border-white/50"
+            >
+              <h2 className="text-3xl font-extrabold text-stone-900 mb-8 border-l-4 border-amber-500 pl-4 flex items-center gap-3">
+                <FileText size={24} className="text-amber-500" /> Documentos
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {cv.documents.map((doc, idx) => (
+                  <div key={idx} className="p-5 rounded-2xl border border-white/60 bg-white/40 flex flex-col justify-between hover:shadow-lg transition-shadow duration-300">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-amber-100/60 flex items-center justify-center flex-shrink-0">
+                        <FileText size={20} className="text-amber-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-stone-900 text-base leading-snug">{doc.title}</h3>
+                        {doc.description && (
+                          <p className="text-xs text-stone-600 mt-1 line-clamp-2">{doc.description}</p>
+                        )}
+                        <div className="flex items-center gap-2 mt-1.5">
+                          {doc.fileType && (
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-100/50 px-2 py-0.5 rounded-full">{doc.fileType}</span>
+                          )}
+                          {doc.fileSize && (
+                            <span className="text-[10px] text-stone-500">{doc.fileSize}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    {doc.fileUrl && (
+                      <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" download
+                        className="glass-btn-3d w-full mt-4 py-2 text-center text-xs uppercase tracking-wider font-bold block rounded-full flex items-center justify-center gap-2">
+                        <Download size={13} /> Download
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
           {/* Gallery & Videos Showcase */}
           {((cv.gallery && cv.gallery.length > 0) || (cv.videos && cv.videos.length > 0)) && (
             <section 

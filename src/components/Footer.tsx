@@ -1,4 +1,4 @@
-import { Mail, Phone, MapPin, Github, Linkedin, Instagram, MessageCircle } from "lucide-react";
+import { Mail, Phone, MapPin, Github, Linkedin, Instagram, MessageCircle, Globe } from "lucide-react";
 import { useCV } from "@/contexts/CVContext";
 
 const TikTokIcon = () => (
@@ -16,6 +16,12 @@ const Footer = () => {
     { key: "instagram", icon: Instagram, url: cv.socialLinks?.instagram, label: "Instagram" },
     { key: "whatsapp", icon: MessageCircle, url: cv.socialLinks?.whatsapp, label: "WhatsApp" },
     { key: "tiktok", icon: TikTokIcon, url: cv.socialLinks?.tiktok, label: "TikTok" },
+    { key: "twitter", icon: Globe, url: cv.socialLinks?.twitter, label: "Twitter / X" },
+    { key: "facebook", icon: Globe, url: cv.socialLinks?.facebook, label: "Facebook" },
+    { key: "youtube", icon: Globe, url: cv.socialLinks?.youtube, label: "YouTube" },
+    { key: "spotify", icon: Globe, url: cv.socialLinks?.spotify, label: "Spotify" },
+    { key: "website", icon: Globe, url: cv.socialLinks?.website, label: "Website" },
+    { key: "zerozero", icon: Globe, url: cv.socialLinks?.zerozero, label: "ZeroZero" },
   ].filter(l => l.url);
 
   return (
