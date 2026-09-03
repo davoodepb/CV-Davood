@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { FileText, ShoppingBag, MessageCircle, Settings, Plus, Pencil, Trash2, Save, LogIn, LogOut, Link as LinkIcon, Send, Image, Video, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
@@ -862,10 +862,14 @@ const MediaPanel = () => {
   const [subTab, setSubTab] = useState<"certs" | "gallery" | "videos" | "docs" | "links">("certs");
   const [saving, setSaving] = useState(false);
 
+  // Keep refs for auto-save (so callbacks always see latest state)
+  const stateRef = useRef({ customLinks, certificates, gallery, videos, documents });
+  useEffect(() => { stateRef.current = { customLinks, certificates, gallery, videos, documents }; }, [customLinks, certificates, gallery, videos, documents]);
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      await saveToFirestore({ customLinks, certificates, gallery, videos, documents });
+      await saveToFirestore(stateRef.current);
       toast.success("All media saved to Firebase!");
     } catch (e: any) {
       toast.error(e?.message || "Media could not be saved to Firebase.");
@@ -873,6 +877,18 @@ const MediaPanel = () => {
       setSaving(false);
     }
   };
+
+  // Auto-save after upload — waits 500ms for state to settle, then saves
+  const autoSaveAfterUpload = useCallback(() => {
+    setTimeout(async () => {
+      try {
+        await saveToFirestore(stateRef.current);
+        toast.success("Auto-saved to Firebase!");
+      } catch {
+        toast.error("Auto-save failed — click 'Save All Media' manually.");
+      }
+    }, 500);
+  }, [saveToFirestore]);
 
   const glassInputClass = "w-full bg-white/40 border border-white/60 rounded-full px-5 py-3 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 placeholder:text-stone-400 text-stone-800 transition-all duration-300";
   const glassTextareaClass = "w-full bg-white/40 border border-white/60 rounded-2xl p-5 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 placeholder:text-stone-400 text-stone-800 transition-all duration-300";
@@ -996,6 +1012,7 @@ const MediaPanel = () => {
                 <div className="mt-2">
                   <FileUploader label="Upload PDF / Document" allowedTypes="application/pdf,.doc,.docx,.pdf" folder="certificates" onUploadSuccess={(url) => {
                     const c = [...certificates]; c[i] = { ...c[i], fileUrl: url }; setCertificates(c);
+                    autoSaveAfterUpload();
                   }} />
                 </div>
                 {cert.fileUrl && (
@@ -1019,6 +1036,7 @@ const MediaPanel = () => {
                 <div className="mt-2">
                   <FileUploader label="Upload Image" allowedTypes="image/*" folder="certificates/images" onUploadSuccess={(url) => {
                     const c = [...certificates]; c[i] = { ...c[i], imgUrl: url }; setCertificates(c);
+                    autoSaveAfterUpload();
                   }} />
                 </div>
                 {cert.imgUrl && (
@@ -1103,6 +1121,7 @@ const MediaPanel = () => {
                       <div className="mt-2">
                         <FileUploader label="Upload Image" allowedTypes="image/*" folder="gallery" onUploadSuccess={(url) => {
                           const c = [...gallery]; c[i] = { ...c[i], imgUrl: url }; setGallery(c);
+                          autoSaveAfterUpload();
                         }} />
                       </div>
                     </div>
@@ -1219,6 +1238,7 @@ const MediaPanel = () => {
                   <div className="mt-2">
                     <FileUploader label="Upload Video (MP4)" allowedTypes="video/mp4,video/webm" folder="videos" maxSizeMB={100} onUploadSuccess={(url) => {
                       const c = [...videos]; c[i] = { ...c[i], videoUrl: url }; setVideos(c);
+                      autoSaveAfterUpload();
                     }} />
                   </div>
                   {vid.videoUrl && (
@@ -1300,6 +1320,7 @@ const MediaPanel = () => {
                 <div className="mt-2">
                   <FileUploader label="Upload Document" allowedTypes="application/pdf,.doc,.docx,.xls,.xlsx,.zip,.ppt,.pptx,.txt,*" folder="documents" onUploadSuccess={(url) => {
                     const c = [...documents]; c[i] = { ...c[i], fileUrl: url }; setDocuments(c);
+                    autoSaveAfterUpload();
                   }} />
                 </div>
                 {doc.fileUrl && (
